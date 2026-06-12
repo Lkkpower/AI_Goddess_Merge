@@ -1,0 +1,17 @@
+﻿{
+  "name": "ai-goddess-merge-server",
+  "version": "1.0.0",
+  "description": "Koa backend for AI Goddess Merge mini game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test ../tests/server.test.js"
+  },
+  "dependencies": {
+    "koa": "^2.15.3",
+    "@koa/router": "^13.1.1",
+    "koa-bodyparser": "^4.4.1",
+    "@koa/cors": "^5.0.0"
+  }
+}
