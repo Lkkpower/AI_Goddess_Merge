@@ -68,6 +68,14 @@ Bind these properties on `MergeItemPrefab`:
 9. Click Daily Reward to test one reward per day.
 10. Click Skin Gallery to view locked and unlocked skins.
 
+## Stage 2B-B Preview Checklist
+
+- 首次进入会显示分步骤新手引导。
+- 点击下一步/上一步会切换引导文案和高亮区域。
+- 最后一步点击完成或开始游戏后，引导完成状态会写入存档。
+- 合成成功、每日奖励、皮肤解锁、广告奖励成功都会显示反馈。
+- 广告未完成时不会发放奖励，并会保留奖励选择弹窗。
+
 ## Replacing Placeholder Assets
 
 First version uses labels as placeholders. Later, place PNG files under `assets/resources`:

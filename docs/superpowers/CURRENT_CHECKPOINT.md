@@ -1,4 +1,4 @@
-﻿# Current Checkpoint - 2026-06-09
+# Current Checkpoint - 2026-06-12
 
 ## Project
 
@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 2B-A completed plus UI polish pass**.
+Current development node: **Stage 2B-B completed**.
 
 Completed capabilities:
 
@@ -22,7 +22,7 @@ Completed capabilities:
 - 7 skin unlock targets.
 - Daily reward with claimed button state.
 - Skin gallery modal with styled list rows.
-- First-run tutorial modal and tutorial completion save flag.
+- First-run tutorial completion save flag.
 - Leaderboard button and leaderboard modal.
 - Leaderboard remote load with local fallback rows.
 - Leaderboard loading state before data renders.
@@ -33,15 +33,22 @@ Completed capabilities:
   - coin bonus
   - spawn high-level item
 - Skin gallery close button moved to bottom center.
+- Step-by-step first-run tutorial with previous, next, finish, and start controls.
+- Tutorial highlight rectangles for generate, board, ad reward, and skin-gallery steps.
+- Lightweight feedback panel for merge success, daily reward, skin unlock, ad reward success, and ad failure.
+- Rewarded-ad flow now waits for `platformManager.showRewardAd()` success before claiming rewards.
+- WeChat and Douyin adapters include explicit rewarded-video ad unit integration points.
 
-## Recent UI Polish
+## Recent Stage 2B-B Changes
 
-Latest user-requested changes completed:
+Latest development changes completed:
 
-1. Clicking `排行榜` now opens the modal immediately and shows `加载中...` before data arrives.
-2. `排行榜` modal title is centered.
-3. Top 3 leaderboard ranks use `🥇`, `🥈`, `🥉` and stronger row colors.
-4. `皮肤图鉴` close button moved from top-right to bottom center.
+1. `TutorialStepConfig.ts` defines four tutorial steps and highlight targets.
+2. `TutorialView.ts` renders one step at a time and updates navigation copy.
+3. `SceneBootstrap.ts` creates tutorial navigation controls, highlight node, and feedback node.
+4. `MainView.ts` owns tutorial step navigation and action feedback.
+5. `RewardAdView.ts` routes rewarded ads through the platform manager before granting rewards.
+6. `WechatAdapter.ts` and `DouyinAdapter.ts` expose rewarded-video ad unit integration points.
 
 ## Key Files
 
@@ -51,12 +58,16 @@ Data and logic:
 - `assets/scripts/data/AdRewardConfig.ts`
 - `assets/scripts/data/LeaderboardData.ts`
 - `assets/scripts/data/DailyReward.ts`
+- `assets/scripts/data/TutorialStepConfig.ts`
 - `assets/scripts/data/ItemConfig.ts`
 - `assets/scripts/data/SkinConfig.ts`
 - `assets/scripts/gameplay/BoardManager.ts`
 - `assets/scripts/core/GameManager.ts`
 - `assets/scripts/core/StorageManager.ts`
 - `assets/scripts/core/EventManager.ts`
+- `assets/scripts/platform/PlatformManager.ts`
+- `assets/scripts/platform/WechatAdapter.ts`
+- `assets/scripts/platform/DouyinAdapter.ts`
 
 UI:
 
@@ -77,7 +88,8 @@ Docs:
 
 - `README.md`
 - `README_CLIENT.md`
-- `docs/superpowers/plans/2026-06-09-phase-2b-a-onboarding-leaderboard-ads.md`
+- `docs/superpowers/specs/2026-06-12-stage-2b-b-design.md`
+- `docs/superpowers/plans/2026-06-12-stage-2b-b-guided-onboarding-feedback-ad-prep.md`
 - `docs/superpowers/CURRENT_CHECKPOINT.md`
 
 ## Last Verification
@@ -86,10 +98,10 @@ Most recent verification before this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 26 pass, 0 fail
+# 33 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts
-# 14 pass, 0 fail
+# 15 pass, 0 fail
 
 npx.cmd --yes --package typescript@5.4.5 tsc --noEmit 2>&1 | Select-String -Pattern 'assets/scripts'
 # no assets/scripts output
@@ -97,40 +109,25 @@ npx.cmd --yes --package typescript@5.4.5 tsc --noEmit 2>&1 | Select-String -Patt
 
 Known note:
 
-- Full unfiltered `tsc --noEmit` still reports Cocos engine declaration and Node test type environment errors. Filtered `assets/scripts` output is clean.
+- Full unfiltered `tsc --noEmit` still reports Cocos engine declaration and Node test type environment errors. Filtered `assets/scripts` output is clean when it prints no `assets/scripts` lines.
 
 ## Git / Workspace State
 
-Current repository status is still largely untracked:
-
-```text
-?? .creator/
-?? .gitignore
-?? README.md
-?? README_CLIENT.md
-?? assets/
-?? docs/
-?? package.json
-?? server/
-?? settings/
-?? tests/
-?? tsconfig.json
-```
-
-This is expected for the current project state. No commit has been made yet.
+The repository now has commits for the Stage 2B-B spec, implementation plan, and implementation slices. Check `git status --short` before resuming; unrelated local editor output should not be reverted.
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 2B-B**.
+Recommended next node: **Stage 3 platform integration prep**.
 
 Suggested scope:
 
-- Improve tutorial from static modal to step-by-step guidance with highlighted target areas.
-- Add simple visual feedback for merge success, reward claim, and unlock skin.
-- Strengthen rewarded-ad reward handling before true platform SDK integration.
-- Start preparing platform adapter details for WeChat/Douyin requests and rewarded ads.
+- Fill real WeChat and Douyin rewarded-video ad unit IDs.
+- Replace placeholder rewarded-video behavior with SDK close-event handling.
+- Prepare platform login and request adapters.
+- Start leaderboard platform/open-data-domain or backend submission integration.
+- Add server-side validation for ad rewards and critical score updates.
 
-Avoid doing all platform SDK work at once until the browser-preview gameplay loop is visually stable.
+Avoid changing core merge rules while platform SDK behavior is being integrated.
 
 ## How To Resume
 
@@ -141,10 +138,15 @@ When reopening development, start from:
 3. Run browser preview.
 4. Check these flows:
    - first-run tutorial
+   - tutorial previous/next/finish controls and highlight areas
    - generate clothing
    - drag merge
+   - merge success feedback
    - daily reward claimed state
+   - daily reward feedback
    - skin gallery close button bottom center
+   - skin unlock feedback
    - leaderboard loading and medal rows
-   - ad reward choice modal
+   - ad reward choice modal and reward feedback
+   - ad failure message path when platform ad returns false
 5. Re-run verification commands before making new changes.
