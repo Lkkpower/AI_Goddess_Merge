@@ -78,10 +78,22 @@ export class SceneBootstrap extends Component {
 
         const tutorialPanel = this.createTutorialPanel(mainNode);
         const tutorialCard = tutorialPanel.getChildByName("TutorialCard")!;
+        const tutorialHighlight = tutorialPanel.getChildByName("TutorialHighlight")!;
         const closeTutorialButton = tutorialCard.getChildByName("CloseTutorialButton")!.getComponent(Button)!;
+        const tutorialPrevButton = tutorialCard.getChildByName("TutorialPrevButton")!.getComponent(Button)!;
+        const tutorialNextButton = tutorialCard.getChildByName("TutorialNextButton")!.getComponent(Button)!;
+        const tutorialStartButton = tutorialCard.getChildByName("TutorialStartButton")!.getComponent(Button)!;
         const tutorialContentLabel = tutorialCard.getChildByName("TutorialContentLabel")!.getComponent(Label)!;
+        const tutorialStepTitleLabel = tutorialCard.getChildByName("TutorialStepTitleLabel")!.getComponent(Label)!;
+        const tutorialStepBodyLabel = tutorialCard.getChildByName("TutorialStepBodyLabel")!.getComponent(Label)!;
         const tutorialView = tutorialCard.addComponent(TutorialView);
         tutorialView.contentLabel = tutorialContentLabel;
+        tutorialView.titleLabel = tutorialStepTitleLabel;
+        tutorialView.bodyLabel = tutorialStepBodyLabel;
+        tutorialView.highlightNode = tutorialHighlight;
+        tutorialView.prevButtonLabel = tutorialPrevButton.node.getChildByName("Label")?.getComponent(Label) ?? null;
+        tutorialView.nextButtonLabel = tutorialNextButton.node.getChildByName("Label")?.getComponent(Label) ?? null;
+        tutorialView.startButtonLabel = tutorialStartButton.node.getChildByName("Label")?.getComponent(Label) ?? null;
         tutorialPanel.active = false;
 
         const leaderboardPanel = this.createLeaderboardPanel(mainNode);
@@ -113,6 +125,9 @@ export class SceneBootstrap extends Component {
         mainView.dailyRewardDisabledMask = dailyRewardDisabledMask;
         mainView.closeSkinButton = closeSkinButton;
         mainView.closeTutorialButton = closeTutorialButton;
+        mainView.tutorialPrevButton = tutorialPrevButton;
+        mainView.tutorialNextButton = tutorialNextButton;
+        mainView.tutorialStartButton = tutorialStartButton;
         mainView.closeLeaderboardButton = closeLeaderboardButton;
         mainView.closeAdRewardButton = closeAdRewardButton;
         mainView.adClearButton = adClearButton;
@@ -147,11 +162,18 @@ export class SceneBootstrap extends Component {
     private createTutorialPanel(mainNode: Node): Node {
         const tutorialPanel = this.createNode("TutorialPanel", mainNode, 0, 0, 9, 720, 1280);
         this.drawSolidRect(tutorialPanel, new Color(8, 6, 12, 170), 720, 1280);
-        const card = this.createNode("TutorialCard", tutorialPanel, 0, 35, 0, 620, 610);
+        const tutorialHighlight = this.createNode("TutorialHighlight", tutorialPanel, 0, 130, 1, 690, 578);
+        this.drawSolidRect(tutorialHighlight, new Color(255, 214, 82, 95), 690, 578);
+        const card = this.createNode("TutorialCard", tutorialPanel, 0, 35, 2, 620, 610);
         this.drawSolidRect(card, new Color(52, 33, 62, 255), 620, 610);
         this.createLabel("TutorialTitleLabel", card, 0, 242, "新手引导", 38, new Color(255, 236, 246, 255), 420, 60);
-        this.createLabel("TutorialContentLabel", card, 0, 45, "", 27, new Color(248, 224, 238, 255), 540, 310);
-        this.createButton("CloseTutorialButton", card, 0, -236, "开始游戏", new Color(247, 76, 122, 255), 320, 72, 28);
+        this.createLabel("TutorialStepTitleLabel", card, 0, 160, "", 32, new Color(255, 236, 246, 255), 520, 54);
+        this.createLabel("TutorialStepBodyLabel", card, 0, 74, "", 26, new Color(248, 224, 238, 255), 540, 110);
+        this.createLabel("TutorialContentLabel", card, 0, -20, "", 22, new Color(220, 190, 210, 255), 540, 96);
+        this.createButton("TutorialPrevButton", card, -205, -172, "上一步", new Color(96, 84, 112, 255), 160, 58, 22);
+        this.createButton("TutorialNextButton", card, 0, -172, "下一步", new Color(247, 76, 122, 255), 180, 58, 24);
+        this.createButton("TutorialStartButton", card, 205, -172, "开始游戏", new Color(112, 184, 124, 255), 180, 58, 24);
+        this.createButton("CloseTutorialButton", card, 0, -254, "关闭引导", new Color(96, 84, 112, 255), 240, 54, 22);
         return tutorialPanel;
     }
 

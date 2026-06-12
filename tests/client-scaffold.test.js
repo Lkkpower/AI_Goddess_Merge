@@ -249,14 +249,58 @@ test('MainView wires tutorial, leaderboard, and ad reward modal handlers', () =>
 
 test('TutorialView and LeaderboardView render modal content from data', () => {
   const tutorialView = read('assets/scripts/ui/TutorialView.ts');
+  const tutorialConfig = read('assets/scripts/data/TutorialStepConfig.ts');
   const leaderboardView = read('assets/scripts/ui/LeaderboardView.ts');
 
   assert.match(tutorialView, /renderTutorialLines\(\): string\[\]/);
-  assert.match(tutorialView, /生成服装/);
-  assert.match(tutorialView, /拖动合成/);
+  assert.match(tutorialConfig, /生成服装/);
+  assert.match(tutorialConfig, /拖动相同服装/);
   assert.match(leaderboardView, /showLeaderboard\(rows: LeaderboardRow\[\]\): void/);
   assert.match(leaderboardView, /LeaderboardRow_/);
   assert.match(leaderboardView, /Lv\.\$\{row\.highestItemLevel\}/);
+});
+
+test('stage 2B-B tutorial scene creates step navigation and highlight nodes', () => {
+  const bootstrap = read('assets/scripts/ui/SceneBootstrap.ts');
+
+  assert.match(bootstrap, /TutorialStepTitleLabel/);
+  assert.match(bootstrap, /TutorialStepBodyLabel/);
+  assert.match(bootstrap, /TutorialHighlight/);
+  assert.match(bootstrap, /TutorialPrevButton/);
+  assert.match(bootstrap, /TutorialNextButton/);
+  assert.match(bootstrap, /TutorialStartButton/);
+  assert.match(bootstrap, /tutorialView\.titleLabel = tutorialStepTitleLabel/);
+  assert.match(bootstrap, /tutorialView\.bodyLabel = tutorialStepBodyLabel/);
+  assert.match(bootstrap, /tutorialView\.highlightNode = tutorialHighlight/);
+  assert.match(bootstrap, /mainView\.tutorialPrevButton = tutorialPrevButton/);
+  assert.match(bootstrap, /mainView\.tutorialNextButton = tutorialNextButton/);
+  assert.match(bootstrap, /mainView\.tutorialStartButton = tutorialStartButton/);
+});
+
+test('TutorialView renders one guided tutorial step and controls navigation copy', () => {
+  const tutorialView = read('assets/scripts/ui/TutorialView.ts');
+
+  assert.match(tutorialView, /import \{ TutorialHighlightTarget/);
+  assert.match(tutorialView, /showStep\(index: number\): void/);
+  assert.match(tutorialView, /setHighlightTarget\(step\.highlightTarget\)/);
+  assert.match(tutorialView, /prevButtonLabel\.string = "上一步"/);
+  assert.match(tutorialView, /nextButtonLabel\.string = index >= tutorialStepConfigs\.length - 1 \? "完成" : "下一步"/);
+  assert.match(tutorialView, /startButtonLabel\.string = "开始游戏"/);
+});
+
+test('MainView owns guided tutorial step navigation before completion', () => {
+  const mainView = read('assets/scripts/ui/MainView.ts');
+
+  assert.match(mainView, /tutorialPrevButton: Button \| null = null/);
+  assert.match(mainView, /tutorialNextButton: Button \| null = null/);
+  assert.match(mainView, /tutorialStartButton: Button \| null = null/);
+  assert.match(mainView, /private tutorialStepIndex = 0/);
+  assert.match(mainView, /showTutorialStep\(0\)/);
+  assert.match(mainView, /onTutorialPrevClicked\(\)/);
+  assert.match(mainView, /onTutorialNextClicked\(\)/);
+  assert.match(mainView, /finishTutorial\(\)/);
+  assert.match(mainView, /clampTutorialStepIndex\(this\.tutorialStepIndex - 1\)/);
+  assert.match(mainView, /clampTutorialStepIndex\(this\.tutorialStepIndex \+ 1\)/);
 });
 
 test('leaderboard shows loading state before data and highlights top three ranks', () => {

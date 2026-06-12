@@ -5,6 +5,7 @@ import { eventManager, GameEvents } from "../core/EventManager";
 import { AdRewardType } from "../data/AdRewardConfig";
 import { getDailyRewardTodayKey } from "../data/DailyReward";
 import { getItemConfigById } from "../data/ItemConfig";
+import { clampTutorialStepIndex, tutorialStepConfigs } from "../data/TutorialStepConfig";
 import { MergeItem } from "../gameplay/MergeItem";
 import { RewardAdView } from "./RewardAdView";
 import { LeaderboardView } from "./LeaderboardView";
@@ -28,6 +29,9 @@ export class MainView extends Component {
     @property(Button) leaderboardButton: Button | null = null;
     @property(Button) closeSkinButton: Button | null = null;
     @property(Button) closeTutorialButton: Button | null = null;
+    @property(Button) tutorialPrevButton: Button | null = null;
+    @property(Button) tutorialNextButton: Button | null = null;
+    @property(Button) tutorialStartButton: Button | null = null;
     @property(Button) closeLeaderboardButton: Button | null = null;
     @property(Button) closeAdRewardButton: Button | null = null;
     @property(Button) adClearButton: Button | null = null;
@@ -45,6 +49,7 @@ export class MainView extends Component {
     gap = 5;
 
     private gameManager: GameManager | null = null;
+    private tutorialStepIndex = 0;
 
     start(): void {
         this.gameManager = GameManager.instance ?? this.node.getComponent(GameManager);
@@ -183,6 +188,9 @@ export class MainView extends Component {
         this.leaderboardButton?.node.on(Button.EventType.CLICK, this.onLeaderboardClicked, this);
         this.closeSkinButton?.node.on(Button.EventType.CLICK, this.onCloseSkinClicked, this);
         this.closeTutorialButton?.node.on(Button.EventType.CLICK, this.onCloseTutorialClicked, this);
+        this.tutorialPrevButton?.node.on(Button.EventType.CLICK, this.onTutorialPrevClicked, this);
+        this.tutorialNextButton?.node.on(Button.EventType.CLICK, this.onTutorialNextClicked, this);
+        this.tutorialStartButton?.node.on(Button.EventType.CLICK, this.finishTutorial, this);
         this.closeLeaderboardButton?.node.on(Button.EventType.CLICK, this.onCloseLeaderboardClicked, this);
         this.closeAdRewardButton?.node.on(Button.EventType.CLICK, this.onCloseAdRewardClicked, this);
         this.dailyRewardButton?.node.on(Button.EventType.CLICK, this.onDailyRewardClicked, this);
@@ -204,7 +212,8 @@ export class MainView extends Component {
         if (!data || data.tutorialCompleted || !this.tutorialPanel) {
             return;
         }
-        this.tutorialView?.showTutorial();
+        this.tutorialStepIndex = 0;
+        this.showTutorialStep(0);
         this.tutorialPanel.active = true;
     }
 
@@ -259,6 +268,29 @@ export class MainView extends Component {
 
     private onCloseTutorialClicked(): void {
         audioManager.playClick();
+        this.finishTutorial();
+    }
+
+    private showTutorialStep(index: number): void {
+        this.tutorialStepIndex = clampTutorialStepIndex(index);
+        this.tutorialView?.showStep(this.tutorialStepIndex);
+    }
+
+    private onTutorialPrevClicked(): void {
+        audioManager.playClick();
+        this.showTutorialStep(clampTutorialStepIndex(this.tutorialStepIndex - 1));
+    }
+
+    private onTutorialNextClicked(): void {
+        audioManager.playClick();
+        if (this.tutorialStepIndex >= tutorialStepConfigs.length - 1) {
+            this.finishTutorial();
+            return;
+        }
+        this.showTutorialStep(clampTutorialStepIndex(this.tutorialStepIndex + 1));
+    }
+
+    private finishTutorial(): void {
         if (!this.gameManager) {
             return;
         }
