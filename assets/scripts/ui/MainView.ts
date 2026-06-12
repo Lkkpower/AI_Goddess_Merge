@@ -20,6 +20,8 @@ export class MainView extends Component {
     @property(Label) coinLabel: Label | null = null;
     @property(Label) scoreLabel: Label | null = null;
     @property(Label) tipLabel: Label | null = null;
+    @property(Node) feedbackPanel: Node | null = null;
+    @property(Label) feedbackLabel: Label | null = null;
     @property(Button) generateButton: Button | null = null;
     @property(Button) clearButton: Button | null = null;
     @property(Button) skinButton: Button | null = null;
@@ -326,6 +328,7 @@ export class MainView extends Component {
             if (this.dailyRewardButtonLabel) {
                 this.dailyRewardButtonLabel.string = "签到成功";
             }
+            this.showFeedback("签到成功", new Color(150, 235, 165, 255));
             return;
         }
         audioManager.playFail();
@@ -354,6 +357,7 @@ export class MainView extends Component {
         this.refreshPlayerInfo();
         this.refreshBoard();
         this.setTip(result.message);
+        this.showFeedback(result.message, result.ok ? new Color(150, 220, 255, 255) : new Color(255, 140, 140, 255));
         if (this.adRewardPanel) {
             this.adRewardPanel.active = false;
         }
@@ -363,12 +367,14 @@ export class MainView extends Component {
         this.refreshPlayerInfo();
         this.refreshSkinView();
         this.setTip("合成成功");
+        this.showFeedback("合成成功", new Color(255, 236, 120, 255));
     }
 
     private onSkinUnlocked(skinId: number): void {
         audioManager.playUnlock();
         this.refreshSkinView();
         this.setTip(`解锁新皮肤 ${skinId}`);
+        this.showFeedback(`解锁新皮肤 ${skinId}`, new Color(255, 188, 230, 255));
     }
 
     private onBoardFull(): void {
@@ -439,6 +445,16 @@ export class MainView extends Component {
     private setTip(message: string): void {
         if (this.tipLabel) {
             this.tipLabel.string = message;
+        }
+    }
+
+    private showFeedback(message: string, color: Color): void {
+        if (this.feedbackLabel) {
+            this.feedbackLabel.string = message;
+            this.feedbackLabel.color = color;
+        }
+        if (this.feedbackPanel) {
+            this.feedbackPanel.active = true;
         }
     }
 

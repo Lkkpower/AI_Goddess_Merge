@@ -303,6 +303,23 @@ test('MainView owns guided tutorial step navigation before completion', () => {
   assert.match(mainView, /clampTutorialStepIndex\(this\.tutorialStepIndex \+ 1\)/);
 });
 
+test('stage 2B-B feedback layer shows action result messages', () => {
+  const bootstrap = read('assets/scripts/ui/SceneBootstrap.ts');
+  const mainView = read('assets/scripts/ui/MainView.ts');
+
+  assert.match(bootstrap, /FeedbackPanel/);
+  assert.match(bootstrap, /FeedbackLabel/);
+  assert.match(bootstrap, /mainView\.feedbackPanel = feedbackPanel/);
+  assert.match(bootstrap, /mainView\.feedbackLabel = feedbackLabel/);
+  assert.match(mainView, /feedbackPanel: Node \| null = null/);
+  assert.match(mainView, /feedbackLabel: Label \| null = null/);
+  assert.match(mainView, /showFeedback\(message: string, color: Color\)/);
+  assert.match(mainView, /this\.showFeedback\("合成成功"/);
+  assert.match(mainView, /this\.showFeedback\("签到成功"/);
+  assert.match(mainView, /this\.showFeedback\(`解锁新皮肤 \$\{skinId\}`/);
+  assert.match(mainView, /this\.showFeedback\(result\.message/);
+});
+
 test('leaderboard shows loading state before data and highlights top three ranks', () => {
   const mainView = read('assets/scripts/ui/MainView.ts');
   const leaderboardView = read('assets/scripts/ui/LeaderboardView.ts');

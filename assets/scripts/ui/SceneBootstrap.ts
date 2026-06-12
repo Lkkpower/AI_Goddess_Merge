@@ -65,6 +65,10 @@ export class SceneBootstrap extends Component {
         const clearButton = this.createButton("ClearButton", actionBar, 168, 0, "广告清理", new Color(66, 148, 224, 255), 320, 92, 34);
 
         const tipLabel = this.createLabel("TipLabel", mainNode, 0, -230, "拖动相同服装进行合成", 28, new Color(255, 205, 230, 255), 660, 56);
+        const feedbackPanel = this.createNode("FeedbackPanel", mainNode, 0, -392, 0, 560, 56);
+        this.drawSolidRect(feedbackPanel, new Color(33, 24, 42, 230), 560, 56);
+        const feedbackLabel = this.createLabel("FeedbackLabel", feedbackPanel, 0, 2, "", 24, new Color(255, 236, 246, 255), 520, 42);
+        feedbackPanel.active = false;
 
         const skinPanel = this.createSkinPanel(mainNode);
         const skinCard = skinPanel.getChildByName("SkinPanel")!;
@@ -116,6 +120,8 @@ export class SceneBootstrap extends Component {
         mainView.coinLabel = coinLabel;
         mainView.scoreLabel = scoreLabel;
         mainView.tipLabel = tipLabel;
+        mainView.feedbackPanel = feedbackPanel;
+        mainView.feedbackLabel = feedbackLabel;
         mainView.generateButton = generateButton;
         mainView.clearButton = clearButton;
         mainView.skinButton = skinButton;
