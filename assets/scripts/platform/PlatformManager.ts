@@ -46,7 +46,7 @@ class PlatformManager {
         return this.getAdapter().login();
     }
 
-    showRewardAd(): Promise<boolean> {
+    async showRewardAd(): Promise<boolean> {
         return this.getAdapter().showRewardAd();
     }
 

@@ -320,6 +320,37 @@ test('stage 2B-B feedback layer shows action result messages', () => {
   assert.match(mainView, /this\.showFeedback\(result\.message/);
 });
 
+test('RewardAdView routes rewarded ads through PlatformManager success result', () => {
+  const rewardAdView = read('assets/scripts/ui/RewardAdView.ts');
+
+  assert.match(rewardAdView, /import \{ platformManager \}/);
+  assert.match(rewardAdView, /await platformManager\.showRewardAd\(\)/);
+  assert.match(rewardAdView, /if \(!watched\)/);
+  assert.match(rewardAdView, /GameEvents\.AD_REWARD_FAILED/);
+  assert.match(rewardAdView, /GameEvents\.AD_REWARD_SUCCESS/);
+});
+
+test('MainView keeps reward modal open and shows feedback when ad viewing fails', () => {
+  const mainView = read('assets/scripts/ui/MainView.ts');
+
+  assert.match(mainView, /RewardAdView\.showRewardAd\(\(\) => \{/);
+  assert.match(mainView, /\}, \(\) => \{/);
+  assert.match(mainView, /this\.showFeedback\("广告未完成，未发放奖励"/);
+  assert.match(mainView, /this\.setTip\("广告未完成，未发放奖励"\)/);
+});
+
+test('platform adapters keep explicit rewarded ad integration points', () => {
+  const platform = read('assets/scripts/platform/PlatformManager.ts');
+  const wechat = read('assets/scripts/platform/WechatAdapter.ts');
+  const douyin = read('assets/scripts/platform/DouyinAdapter.ts');
+
+  assert.match(platform, /async showRewardAd\(\): Promise<boolean>/);
+  assert.match(wechat, /REWARDED_AD_UNIT_ID/);
+  assert.match(wechat, /createRewardedVideoAd/);
+  assert.match(douyin, /REWARDED_AD_UNIT_ID/);
+  assert.match(douyin, /createRewardedVideoAd/);
+});
+
 test('leaderboard shows loading state before data and highlights top three ranks', () => {
   const mainView = read('assets/scripts/ui/MainView.ts');
   const leaderboardView = read('assets/scripts/ui/LeaderboardView.ts');

@@ -1,5 +1,6 @@
-﻿import { _decorator, Component } from "cc";
+import { _decorator, Component } from "cc";
 import { eventManager, GameEvents } from "../core/EventManager";
+import { platformManager } from "../platform/PlatformManager";
 const { ccclass } = _decorator;
 
 @ccclass("RewardAdView")
@@ -8,17 +9,20 @@ export class RewardAdView extends Component {
         RewardAdView.showRewardAd(onSuccess, onFail);
     }
 
-    static showRewardAd(onSuccess: Function, onFail?: Function): void {
-        // TODO: 后续接入 PlatformManager.showRewardAd。
-        // 微信使用 wx.createRewardedVideoAd，抖音使用 tt.createRewardedVideoAd。
-        setTimeout(() => {
-            try {
-                onSuccess();
-                eventManager.emit(GameEvents.AD_REWARD_SUCCESS);
-            } catch (error) {
-                console.warn("[RewardAdView] reward callback failed", error);
-                onFail?.(error);
+    static async showRewardAd(onSuccess: Function, onFail?: Function): Promise<void> {
+        try {
+            const watched = await platformManager.showRewardAd();
+            if (!watched) {
+                eventManager.emit(GameEvents.AD_REWARD_FAILED);
+                onFail?.();
+                return;
             }
-        }, 500);
+            onSuccess();
+            eventManager.emit(GameEvents.AD_REWARD_SUCCESS);
+        } catch (error) {
+            console.warn("[RewardAdView] reward ad failed", error);
+            eventManager.emit(GameEvents.AD_REWARD_FAILED, error);
+            onFail?.(error);
+        }
     }
 }

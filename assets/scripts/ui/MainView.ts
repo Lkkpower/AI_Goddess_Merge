@@ -342,6 +342,10 @@ export class MainView extends Component {
         }
         RewardAdView.showRewardAd(() => {
             this.applyAdReward(rewardType);
+        }, () => {
+            audioManager.playFail();
+            this.setTip("广告未完成，未发放奖励");
+            this.showFeedback("广告未完成，未发放奖励", new Color(255, 140, 140, 255));
         });
     }
 
