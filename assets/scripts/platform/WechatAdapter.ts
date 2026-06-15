@@ -16,10 +16,58 @@ export class WechatAdapter {
         if (typeof wx === "undefined" || !REWARDED_AD_UNIT_ID) {
             return true;
         }
-        // Real integration path: wx.createRewardedVideoAd({ adUnitId: REWARDED_AD_UNIT_ID }).
-        // Resolve true only from the close event when res.isEnded is true.
-        wx.createRewardedVideoAd({ adUnitId: REWARDED_AD_UNIT_ID });
-        return true;
+        if (typeof wx.createRewardedVideoAd !== "function") {
+            return false;
+        }
+
+        const rewardedAd = wx.createRewardedVideoAd({ adUnitId: REWARDED_AD_UNIT_ID });
+        if (!rewardedAd) {
+            return false;
+        }
+        if (typeof rewardedAd.show !== "function") {
+            return false;
+        }
+
+        return new Promise((resolve) => {
+            let settled = false;
+
+            function cleanup(): void {
+                rewardedAd.offClose?.(handleClose);
+                rewardedAd.offError?.(handleError);
+            }
+
+            function settle(value: boolean): void {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                cleanup();
+                resolve(value);
+            }
+
+            function handleClose(result: { isEnded?: boolean }): void {
+                settle(Boolean(result && result.isEnded));
+            }
+
+            function handleError(): void {
+                settle(false);
+            }
+
+            rewardedAd.onClose?.(handleClose);
+            rewardedAd.onError?.(handleError);
+
+            const showResult = rewardedAd.show();
+            Promise.resolve(showResult).catch(() => {
+                if (typeof rewardedAd.load !== "function") {
+                    settle(false);
+                    return;
+                }
+                const loadResult = rewardedAd.load();
+                Promise.resolve(loadResult)
+                    .then(() => rewardedAd.show())
+                    .catch(() => settle(false));
+            });
+        });
     }
 
     async share(title: string = "女神衣橱大合成", imageUrl: string = ""): Promise<boolean> {

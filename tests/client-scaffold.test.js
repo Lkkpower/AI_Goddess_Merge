@@ -373,6 +373,24 @@ test('platform adapters keep explicit rewarded ad integration points', () => {
   assert.match(douyin, /createRewardedVideoAd/);
 });
 
+test('stage 3 platform adapters resolve rewarded ads from close events', () => {
+  const wechat = read('assets/scripts/platform/WechatAdapter.ts');
+  const douyin = read('assets/scripts/platform/DouyinAdapter.ts');
+
+  for (const source of [wechat, douyin]) {
+    assert.match(source, /onClose/);
+    assert.match(source, /offClose/);
+    assert.match(source, /onError/);
+    assert.match(source, /offError/);
+    assert.match(source, /isEnded/);
+    assert.match(source, /settled/);
+    assert.match(source, /cleanup\(\)/);
+    assert.match(source, /rewardedAd\.show\(\)/);
+    assert.match(source, /rewardedAd\.load\(\)/);
+    assert.match(source, /settle\(Boolean\(result && result\.isEnded\)\)/);
+  }
+});
+
 test('leaderboard shows loading state before data and highlights top three ranks', () => {
   const mainView = read('assets/scripts/ui/MainView.ts');
   const leaderboardView = read('assets/scripts/ui/LeaderboardView.ts');
