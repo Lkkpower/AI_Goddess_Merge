@@ -3,6 +3,8 @@ declare const tt: any;
 const REWARDED_AD_UNIT_ID = "";
 
 export class DouyinAdapter {
+    constructor(private readonly rewardedAdUnitId: string = REWARDED_AD_UNIT_ID) {}
+
     async login(): Promise<any> {
         if (typeof tt === "undefined") {
             return { mock: true, platform: "douyin" };
@@ -13,18 +15,22 @@ export class DouyinAdapter {
     }
 
     async showRewardAd(): Promise<boolean> {
-        if (typeof tt === "undefined" || !REWARDED_AD_UNIT_ID) {
+        if (typeof tt === "undefined" || !this.rewardedAdUnitId) {
             return true;
         }
         if (typeof tt.createRewardedVideoAd !== "function") {
             return false;
         }
 
-        const rewardedAd = tt.createRewardedVideoAd({ adUnitId: REWARDED_AD_UNIT_ID });
+        const rewardedAd = tt.createRewardedVideoAd({ adUnitId: this.rewardedAdUnitId });
         if (!rewardedAd) {
             return false;
         }
-        if (typeof rewardedAd.show !== "function") {
+        if (
+            typeof rewardedAd.show !== "function"
+            || typeof rewardedAd.onClose !== "function"
+            || typeof rewardedAd.onError !== "function"
+        ) {
             return false;
         }
 
@@ -32,8 +38,12 @@ export class DouyinAdapter {
             let settled = false;
 
             function cleanup(): void {
-                rewardedAd.offClose?.(handleClose);
-                rewardedAd.offError?.(handleError);
+                if (typeof rewardedAd.offClose === "function") {
+                    rewardedAd.offClose(handleClose);
+                }
+                if (typeof rewardedAd.offError === "function") {
+                    rewardedAd.offError(handleError);
+                }
             }
 
             function settle(value: boolean): void {
@@ -53,18 +63,18 @@ export class DouyinAdapter {
                 settle(false);
             }
 
-            rewardedAd.onClose?.(handleClose);
-            rewardedAd.onError?.(handleError);
+            rewardedAd.onClose(handleClose);
+            rewardedAd.onError(handleError);
 
-            const showResult = rewardedAd.show();
-            Promise.resolve(showResult).catch(() => {
+            Promise.resolve().then(() => rewardedAd.show()).catch(() => {
                 if (typeof rewardedAd.load !== "function") {
                     settle(false);
                     return;
                 }
-                const loadResult = rewardedAd.load();
-                Promise.resolve(loadResult)
-                    .then(() => rewardedAd.show())
+
+                Promise.resolve()
+                    .then(() => rewardedAd.load())
+                    .then(() => Promise.resolve().then(() => rewardedAd.show()))
                     .catch(() => settle(false));
             });
         });
