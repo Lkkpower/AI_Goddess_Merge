@@ -76,6 +76,14 @@ Bind these properties on `MergeItemPrefab`:
 - 合成成功、每日奖励、皮肤解锁、广告奖励成功都会显示反馈。
 - 广告未完成时不会发放奖励，并会保留奖励选择弹窗。
 
+## Stage 3-A 平台广告检查
+
+- 浏览器预览环境仍会使用 mock 激励广告成功路径。
+- 配置微信真实广告位 ID 后，奖励只应在 `onClose` 返回 `isEnded: true` 时发放。
+- 配置抖音真实广告位 ID 后，奖励只应在 `onClose` 返回 `isEnded: true` 时发放。
+- 提前关闭、广告加载失败或广告展示失败时，不应调用本地奖励领取逻辑。
+- 后端 `/ad/reward` 只接受 `clear_low_items`、`coin_bonus`、`high_level_item`。
+
 ## Replacing Placeholder Assets
 
 First version uses labels as placeholders. Later, place PNG files under `assets/resources`:

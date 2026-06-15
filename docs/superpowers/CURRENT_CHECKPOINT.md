@@ -1,4 +1,4 @@
-# Current Checkpoint - 2026-06-12
+# Current Checkpoint - 2026-06-15
 
 ## Project
 
@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 2B-B completed**.
+Current development node: **Stage 3-A completed**.
 
 Completed capabilities:
 
@@ -38,17 +38,22 @@ Completed capabilities:
 - Lightweight feedback panel for merge success, daily reward, skin unlock, ad reward success, and ad failure.
 - Rewarded-ad flow now waits for `platformManager.showRewardAd()` success before claiming rewards.
 - WeChat and Douyin adapters include explicit rewarded-video ad unit integration points.
+- WeChat and Douyin rewarded-video adapters resolve success from platform close events when real ad unit IDs are configured.
+- Early ad close, SDK error, and show/load failure do not grant rewards.
+- Server ad reward validation accepts the same reward types used by the client.
+- Server ad reward claims record watch count, last reward type, last reward time, and client reward context.
+- Rapid duplicate ad reward claims are rejected server-side.
 
-## Recent Stage 2B-B Changes
+## Recent Stage 3-A Changes
 
 Latest development changes completed:
 
-1. `TutorialStepConfig.ts` defines four tutorial steps and highlight targets.
-2. `TutorialView.ts` renders one step at a time and updates navigation copy.
-3. `SceneBootstrap.ts` creates tutorial navigation controls, highlight node, and feedback node.
-4. `MainView.ts` owns tutorial step navigation and action feedback.
-5. `RewardAdView.ts` routes rewarded ads through the platform manager before granting rewards.
-6. `WechatAdapter.ts` and `DouyinAdapter.ts` expose rewarded-video ad unit integration points.
+1. `server.js` aligns `/ad/reward` with client reward types and rejects invalid or rapid duplicate claims.
+2. `StorageManager.ts` sends ad reward claim context to the server.
+3. `GameManager.ts` submits reward value, coins, score, and highest item level after local reward application.
+4. `WechatAdapter.ts` and `DouyinAdapter.ts` resolve rewarded ads from `onClose` completion instead of show success.
+5. `tests/platform-adapter.test.ts` verifies completed watch, early close, show/load failure, and SDK error behavior for platform adapters.
+6. Documentation now records the Stage 3-A platform ad validation checkpoint.
 
 ## Key Files
 
@@ -68,6 +73,7 @@ Data and logic:
 - `assets/scripts/platform/PlatformManager.ts`
 - `assets/scripts/platform/WechatAdapter.ts`
 - `assets/scripts/platform/DouyinAdapter.ts`
+- `server/server.js`
 
 UI:
 
@@ -82,26 +88,28 @@ Tests:
 
 - `tests/client-scaffold.test.js`
 - `tests/client-logic.test.ts`
+- `tests/platform-adapter.test.ts`
 - `tests/server.test.js`
 
 Docs:
 
 - `README.md`
 - `README_CLIENT.md`
+- `docs/superpowers/plans/2026-06-15-stage-3-ad-platform-validation.md`
 - `docs/superpowers/specs/2026-06-12-stage-2b-b-design.md`
 - `docs/superpowers/plans/2026-06-12-stage-2b-b-guided-onboarding-feedback-ad-prep.md`
 - `docs/superpowers/CURRENT_CHECKPOINT.md`
 
 ## Last Verification
 
-Most recent verification before this checkpoint:
+Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 33 pass, 0 fail
+# 39 pass, 0 fail
 
-npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts
-# 15 pass, 0 fail
+npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
+# 29 pass, 0 fail
 
 npx.cmd --yes --package typescript@5.4.5 tsc --noEmit 2>&1 | Select-String -Pattern 'assets/scripts'
 # no assets/scripts output
@@ -117,15 +125,14 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3 platform integration prep**.
+Recommended next node: **Stage 3 platform login and request adapter integration**.
 
 Suggested scope:
 
-- Fill real WeChat and Douyin rewarded-video ad unit IDs.
-- Replace placeholder rewarded-video behavior with SDK close-event handling.
-- Prepare platform login and request adapters.
-- Start leaderboard platform/open-data-domain or backend submission integration.
-- Add server-side validation for ad rewards and critical score updates.
+- Add platform login identity flow for WeChat and Douyin.
+- Replace fetch-only remote calls with platform request adapters.
+- Start leaderboard submission integration after player identity is stable.
+- Keep server-authoritative board mutation out of scope until request and identity paths are reliable.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
 

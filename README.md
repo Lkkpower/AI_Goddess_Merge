@@ -118,14 +118,20 @@ node --test tests\client-scaffold.test.js
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts
 ```
 
+客户端平台适配行为测试：
+
+```bash
+npx.cmd --yes --package tsx tsx --test tests\platform-adapter.test.ts
+```
+
 一次性运行 Node 侧测试：
 
 ```bash
 node --test tests\server.test.js tests\client-scaffold.test.js
-npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts
+npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
 ```
 
-说明：`client-logic.test.ts` 直接运行 TypeScript 源码，覆盖物品配置、皮肤配置、合成规则、棋盘生成、合成、满格和清理低级物品。Cocos 编辑器预览仍需要按“客户端运行”挂载 `SceneBootstrap.ts`。
+说明：`client-logic.test.ts` 直接运行 TypeScript 源码，覆盖物品配置、皮肤配置、合成规则、棋盘生成、合成、满格和清理低级物品。`platform-adapter.test.ts` 覆盖微信/抖音激励视频关闭事件、提前关闭和错误路径。Cocos 编辑器预览仍需要按“客户端运行”挂载 `SceneBootstrap.ts`。
 ## 微信/抖音发布注意事项
 
 - 真机环境必须使用 HTTPS 后端域名。
@@ -188,6 +194,14 @@ npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts
 - 微信/抖音平台适配层保留真实激励广告接入点。
 
 ### 阶段 3：平台接入
+
+阶段 3-A 已完成：
+
+- 微信/抖音激励视频广告适配器现在监听平台关闭事件。
+- 奖励只会在平台返回完整观看后发放。
+- 服务端 `/ad/reward` 已对齐客户端奖励类型。
+- 服务端会记录广告领取次数、最近领取时间和最近领取类型，并拒绝过快重复领取。
+- 客户端会随广告奖励上报奖励值、金币、分数和最高服装等级上下文。
 
 - 微信小游戏构建
 - 抖音小游戏构建
