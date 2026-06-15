@@ -5,6 +5,15 @@ import { PlayerData, clonePlayerData } from "../data/PlayerData";
 
 const LOCAL_SAVE_KEY = "AI_GODDESS_MERGE_PLAYER_DATA";
 
+export interface AdRewardClaimPayload {
+    playerId: string;
+    rewardType: AdRewardType;
+    clientRewardValue?: number;
+    clientCoins?: number;
+    clientScore?: number;
+    clientHighestItemLevel?: number;
+}
+
 class StorageManager {
     remoteBaseUrl = "http://localhost:3000";
 
@@ -72,12 +81,12 @@ class StorageManager {
         return Array.isArray(response) ? response as RemoteLeaderboardRow[] : [];
     }
 
-    async claimAdReward(playerId: string, rewardType: AdRewardType): Promise<boolean> {
+    async claimAdReward(payload: AdRewardClaimPayload): Promise<boolean> {
         try {
             const response = await this.request("/ad/reward", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ playerId, rewardType }),
+                body: JSON.stringify(payload),
             });
             return Boolean(response?.ok);
         } catch (error) {

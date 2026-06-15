@@ -138,7 +138,14 @@ export class GameManager extends Component {
         const result = { ok: true, rewardType, message, value };
         eventManager.emit(GameEvents.AD_REWARD_CLAIMED, result);
         this.saveGame();
-        storageManager.claimAdReward(data.playerId, rewardType).catch((error) => {
+        storageManager.claimAdReward({
+            playerId: data.playerId,
+            rewardType,
+            clientRewardValue: result.value,
+            clientCoins: data.coins,
+            clientScore: data.score,
+            clientHighestItemLevel: data.highestItemLevel,
+        }).catch((error) => {
             console.warn("[GameManager] remote ad reward failed", error);
         });
         return result;

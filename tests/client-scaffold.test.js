@@ -212,7 +212,29 @@ test('GameManager exposes tutorial completion, leaderboard loading, and configur
   assert.match(gameManager, /claimAdReward\(rewardType: AdRewardType\)/);
   assert.match(gameManager, /createLocalLeaderboard\(data\)/);
   assert.match(storage, /loadLeaderboard\(\): Promise<RemoteLeaderboardRow\[\]>/);
-  assert.match(storage, /claimAdReward\(playerId: string, rewardType: AdRewardType\)/);
+  assert.match(storage, /claimAdReward\(payload: AdRewardClaimPayload\): Promise<boolean>/);
+});
+
+test('stage 3 client submits ad reward context to remote validation endpoint', () => {
+  const storage = read('assets/scripts/core/StorageManager.ts');
+  const gameManager = read('assets/scripts/core/GameManager.ts');
+
+  assert.match(storage, /export interface AdRewardClaimPayload/);
+  assert.match(storage, /playerId: string/);
+  assert.match(storage, /rewardType: AdRewardType/);
+  assert.match(storage, /clientRewardValue\?: number/);
+  assert.match(storage, /clientCoins\?: number/);
+  assert.match(storage, /clientScore\?: number/);
+  assert.match(storage, /clientHighestItemLevel\?: number/);
+  assert.match(storage, /claimAdReward\(payload: AdRewardClaimPayload\): Promise<boolean>/);
+  assert.match(storage, /body: JSON\.stringify\(payload\)/);
+  assert.match(gameManager, /storageManager\.claimAdReward\(\{/);
+  assert.match(gameManager, /playerId: data\.playerId/);
+  assert.match(gameManager, /rewardType/);
+  assert.match(gameManager, /clientRewardValue: result\.value/);
+  assert.match(gameManager, /clientCoins: data\.coins/);
+  assert.match(gameManager, /clientScore: data\.score/);
+  assert.match(gameManager, /clientHighestItemLevel: data\.highestItemLevel/);
 });
 
 test('stage 2B-A scene creates tutorial, leaderboard, and ad reward modal UI', () => {
