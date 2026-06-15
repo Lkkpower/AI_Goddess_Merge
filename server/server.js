@@ -79,11 +79,7 @@ function validatePlayerData(data) {
 
 function mergePlayerSaveData(existingPlayer, incomingData, now = Date.now()) {
   const existingAdWatchCount = Number(existingPlayer && existingPlayer.adWatchCount);
-  const incomingAdWatchCount = Number(incomingData && incomingData.adWatchCount);
-  const adWatchCount = Math.max(
-    Number.isFinite(existingAdWatchCount) ? existingAdWatchCount : 0,
-    Number.isFinite(incomingAdWatchCount) ? incomingAdWatchCount : 0
-  );
+  const adWatchCount = Number.isFinite(existingAdWatchCount) ? existingAdWatchCount : 0;
   const defaultPlayer = createDefaultPlayer(incomingData.playerId, incomingData.nickname);
 
   return {

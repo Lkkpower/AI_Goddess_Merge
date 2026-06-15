@@ -50,8 +50,10 @@ curl http://localhost:3000/leaderboard
 ```bash
 curl -X POST http://localhost:3000/ad/reward \
   -H "Content-Type: application/json" \
-  -d '{"playerId":"demo_player","rewardType":"clear_low_items"}'
+  -d '{"playerId":"demo_player","rewardType":"clear_low_items","clientRewardValue":3,"clientCoins":100,"clientScore":200,"clientHighestItemLevel":3}'
 ```
+
+Optional client context fields: `clientRewardValue`, `clientCoins`, `clientScore`, `clientHighestItemLevel`.
 
 ## Data
 
@@ -67,9 +69,14 @@ Player data is stored in `server/data/playerData.json` for the demo.
   "unlockedSkins": [],
   "board": [],
   "adWatchCount": 0,
+  "lastAdRewardTime": 0,
+  "lastAdRewardType": "",
+  "lastAdRewardClientContext": null,
   "lastSaveTime": 0
 }
 ```
+
+After an accepted ad reward, `lastAdRewardClientContext` stores the optional client context fields from the `/ad/reward` request.
 
 ## Notes
 

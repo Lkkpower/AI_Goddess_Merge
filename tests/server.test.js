@@ -107,6 +107,20 @@ test('claimAdRewardForPlayer rejects invalid reward types and rapid duplicate cl
   );
 });
 
+test('normal player saves do not advance server-owned adWatchCount before ad reward claims', () => {
+  const store = {};
+  const now = 1781450000000;
+  const clientSaveAfterWatchingAd = {
+    ...server.createDefaultPlayer('ad_player'),
+    adWatchCount: 1,
+  };
+
+  store.ad_player = server.mergePlayerSaveData(undefined, clientSaveAfterWatchingAd, now);
+  server.claimAdRewardForPlayer(store, { playerId: 'ad_player', rewardType: 'coin_bonus' }, now + 1000);
+
+  assert.equal(store.ad_player.adWatchCount, 1);
+});
+
 test('mergePlayerSaveData preserves ad cooldown metadata from stale player saves', () => {
   const store = {};
   const now = 1781450000000;
