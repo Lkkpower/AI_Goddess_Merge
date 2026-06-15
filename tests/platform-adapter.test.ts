@@ -114,6 +114,38 @@ const platformCases = [
     },
 ];
 
+const previewFallbackCases = [
+    {
+        name: "WechatAdapter",
+        globalName: "wx",
+        createDefaultAdapter: () => new WechatAdapter(),
+        createEmptyAdapter: () => new WechatAdapter(""),
+        createConfiguredAdapter: () => new WechatAdapter("wechat-test-ad-unit"),
+    },
+    {
+        name: "DouyinAdapter",
+        globalName: "tt",
+        createDefaultAdapter: () => new DouyinAdapter(),
+        createEmptyAdapter: () => new DouyinAdapter(""),
+        createConfiguredAdapter: () => new DouyinAdapter("douyin-test-ad-unit"),
+    },
+];
+
+for (const platform of previewFallbackCases) {
+    test(`${platform.name} returns true for default and empty ad unit IDs without SDK global`, async () => {
+        delete (globalThis as any)[platform.globalName];
+
+        assert.equal(await platform.createDefaultAdapter().showRewardAd(), true);
+        assert.equal(await platform.createEmptyAdapter().showRewardAd(), true);
+    });
+
+    test(`${platform.name} returns true for configured ad unit ID when SDK global is missing`, async () => {
+        delete (globalThis as any)[platform.globalName];
+
+        assert.equal(await platform.createConfiguredAdapter().showRewardAd(), true);
+    });
+}
+
 for (const platform of platformCases) {
     test(`${platform.name} resolves true when rewarded ad close reports ended`, async () => {
         const ad = new FakeRewardedAd();
