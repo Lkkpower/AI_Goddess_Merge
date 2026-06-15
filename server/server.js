@@ -8,7 +8,8 @@ const path = require("path");
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "playerData.json");
-const ALLOWED_REWARD_TYPES = ["clear_low_items", "double_coins", "free_item"];
+const ALLOWED_REWARD_TYPES = ["clear_low_items", "coin_bonus", "high_level_item"];
+const AD_REWARD_COOLDOWN_MS = 30 * 1000;
 
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -45,6 +46,9 @@ function createDefaultPlayer(playerId, nickname = "游客") {
     unlockedSkins: [],
     board: [],
     adWatchCount: 0,
+    lastAdRewardTime: 0,
+    lastAdRewardType: "",
+    lastAdRewardClientContext: null,
     lastSaveTime: Date.now(),
   };
 }
@@ -94,13 +98,53 @@ function getRewardValue(rewardType) {
   if (rewardType === "clear_low_items") {
     return 3;
   }
-  if (rewardType === "double_coins") {
-    return 2;
+  if (rewardType === "coin_bonus") {
+    return 120;
   }
-  if (rewardType === "free_item") {
-    return 1;
+  if (rewardType === "high_level_item") {
+    return 4;
   }
   throw new Error("Invalid rewardType");
+}
+
+function normalizeAdRewardClientContext(body) {
+  return {
+    clientRewardValue: Number(body.clientRewardValue) || 0,
+    clientCoins: Number(body.clientCoins) || 0,
+    clientScore: Number(body.clientScore) || 0,
+    clientHighestItemLevel: Number(body.clientHighestItemLevel) || 0,
+  };
+}
+
+function claimAdRewardForPlayer(store, body, now = Date.now()) {
+  const { playerId, rewardType } = body || {};
+  if (!playerId || typeof playerId !== "string") {
+    throw new Error("playerId is required");
+  }
+  if (!ALLOWED_REWARD_TYPES.includes(rewardType)) {
+    throw new Error("rewardType is invalid");
+  }
+
+  const player = store[playerId] || createDefaultPlayer(playerId);
+  const lastAdRewardTime = Number(player.lastAdRewardTime) || 0;
+  if (lastAdRewardTime > 0 && now - lastAdRewardTime < AD_REWARD_COOLDOWN_MS) {
+    throw new Error("ad reward claim is too frequent");
+  }
+
+  player.adWatchCount = (Number(player.adWatchCount) || 0) + 1;
+  player.lastAdRewardTime = now;
+  player.lastAdRewardType = rewardType;
+  player.lastAdRewardClientContext = normalizeAdRewardClientContext(body);
+  player.lastSaveTime = now;
+  store[playerId] = player;
+
+  return {
+    ok: true,
+    rewardType,
+    rewardValue: getRewardValue(rewardType),
+    adWatchCount: player.adWatchCount,
+    lastAdRewardTime: player.lastAdRewardTime,
+  };
 }
 
 function sendBadRequest(ctx, message) {
@@ -194,29 +238,14 @@ function createApp() {
   });
 
   router.post("/ad/reward", (ctx) => {
-    const { playerId, rewardType } = ctx.request.body || {};
-    if (!playerId || typeof playerId !== "string") {
-      sendBadRequest(ctx, "playerId is required");
-      return;
-    }
-    if (!ALLOWED_REWARD_TYPES.includes(rewardType)) {
-      sendBadRequest(ctx, "rewardType is invalid");
-      return;
-    }
-
     const store = readPlayerStore();
-    const player = store[playerId] || createDefaultPlayer(playerId);
-    player.adWatchCount = (Number(player.adWatchCount) || 0) + 1;
-    player.lastSaveTime = Date.now();
-    store[playerId] = player;
-    writePlayerStore(store);
-
-    ctx.body = {
-      ok: true,
-      rewardType,
-      rewardValue: getRewardValue(rewardType),
-      adWatchCount: player.adWatchCount,
-    };
+    try {
+      const result = claimAdRewardForPlayer(store, ctx.request.body || {});
+      writePlayerStore(store);
+      ctx.body = result;
+    } catch (error) {
+      sendBadRequest(ctx, error.message);
+    }
   });
 
   app.use(router.routes());
@@ -240,6 +269,10 @@ module.exports = {
   validatePlayerData,
   getLeaderboard,
   getRewardValue,
+  ALLOWED_REWARD_TYPES,
+  AD_REWARD_COOLDOWN_MS,
+  normalizeAdRewardClientContext,
+  claimAdRewardForPlayer,
   sendBadRequest,
   errorHandler,
 };

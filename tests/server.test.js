@@ -53,9 +53,56 @@ test('getLeaderboard sorts by score then highest item level and returns top 20',
   assert.deepEqual(Object.keys(leaderboard[0]), ['playerId', 'nickname', 'score', 'highestItemLevel']);
 });
 
-test('getRewardValue maps allowed ad reward types', () => {
+test('getRewardValue maps stage 3 client ad reward types', () => {
   assert.equal(server.getRewardValue('clear_low_items'), 3);
-  assert.equal(server.getRewardValue('double_coins'), 2);
-  assert.equal(server.getRewardValue('free_item'), 1);
-  assert.throws(() => server.getRewardValue('unknown'), /Invalid rewardType/);
+  assert.equal(server.getRewardValue('coin_bonus'), 120);
+  assert.equal(server.getRewardValue('high_level_item'), 4);
+  assert.throws(() => server.getRewardValue('double_coins'), /Invalid rewardType/);
+  assert.throws(() => server.getRewardValue('free_item'), /Invalid rewardType/);
+});
+
+test('claimAdRewardForPlayer records accepted ad claim metadata', () => {
+  const store = {};
+  const now = 1781450000000;
+
+  const result = server.claimAdRewardForPlayer(store, {
+    playerId: 'ad_player',
+    rewardType: 'coin_bonus',
+    clientRewardValue: 120,
+    clientCoins: 240,
+    clientScore: 360,
+    clientHighestItemLevel: 8,
+  }, now);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.rewardType, 'coin_bonus');
+  assert.equal(result.rewardValue, 120);
+  assert.equal(result.adWatchCount, 1);
+  assert.equal(result.lastAdRewardTime, now);
+  assert.equal(store.ad_player.adWatchCount, 1);
+  assert.equal(store.ad_player.lastAdRewardTime, now);
+  assert.equal(store.ad_player.lastAdRewardType, 'coin_bonus');
+  assert.deepEqual(store.ad_player.lastAdRewardClientContext, {
+    clientRewardValue: 120,
+    clientCoins: 240,
+    clientScore: 360,
+    clientHighestItemLevel: 8,
+  });
+});
+
+test('claimAdRewardForPlayer rejects invalid reward types and rapid duplicate claims', () => {
+  const store = {};
+  const now = 1781450000000;
+
+  assert.throws(
+    () => server.claimAdRewardForPlayer(store, { playerId: 'ad_player', rewardType: 'unknown' }, now),
+    /rewardType is invalid/
+  );
+
+  server.claimAdRewardForPlayer(store, { playerId: 'ad_player', rewardType: 'clear_low_items' }, now);
+
+  assert.throws(
+    () => server.claimAdRewardForPlayer(store, { playerId: 'ad_player', rewardType: 'clear_low_items' }, now + 1000),
+    /ad reward claim is too frequent/
+  );
 });
