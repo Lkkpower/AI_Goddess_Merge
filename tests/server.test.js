@@ -106,3 +106,58 @@ test('claimAdRewardForPlayer rejects invalid reward types and rapid duplicate cl
     /ad reward claim is too frequent/
   );
 });
+
+test('mergePlayerSaveData preserves ad cooldown metadata from stale player saves', () => {
+  const store = {};
+  const now = 1781450000000;
+
+  server.claimAdRewardForPlayer(store, {
+    playerId: 'ad_player',
+    rewardType: 'coin_bonus',
+    clientRewardValue: 120,
+  }, now);
+
+  const staleSaveData = {
+    playerId: 'ad_player',
+    nickname: 'Stale Save',
+    coins: 10,
+    score: 20,
+    highestItemLevel: 3,
+    unlockedSkins: [],
+    board: [],
+    adWatchCount: 0,
+    lastSaveTime: now + 500,
+  };
+
+  store.ad_player = server.mergePlayerSaveData(store.ad_player, staleSaveData, now + 500);
+
+  assert.equal(store.ad_player.lastAdRewardTime, now);
+  assert.equal(store.ad_player.lastAdRewardType, 'coin_bonus');
+  assert.deepEqual(store.ad_player.lastAdRewardClientContext, {
+    clientRewardValue: 120,
+    clientCoins: 0,
+    clientScore: 0,
+    clientHighestItemLevel: 0,
+  });
+
+  assert.throws(
+    () => server.claimAdRewardForPlayer(store, { playerId: 'ad_player', rewardType: 'coin_bonus' }, now + 1000),
+    /ad reward claim is too frequent/
+  );
+});
+
+test('mergePlayerSaveData prevents stale saves from rolling back adWatchCount', () => {
+  const now = 1781450000000;
+  const existing = {
+    ...server.createDefaultPlayer('ad_player'),
+    adWatchCount: 3,
+  };
+  const incoming = {
+    ...server.createDefaultPlayer('ad_player'),
+    adWatchCount: 1,
+  };
+
+  const merged = server.mergePlayerSaveData(existing, incoming, now);
+
+  assert.equal(merged.adWatchCount, 3);
+});

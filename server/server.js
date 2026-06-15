@@ -77,6 +77,32 @@ function validatePlayerData(data) {
   }
 }
 
+function mergePlayerSaveData(existingPlayer, incomingData, now = Date.now()) {
+  const existingAdWatchCount = Number(existingPlayer && existingPlayer.adWatchCount);
+  const incomingAdWatchCount = Number(incomingData && incomingData.adWatchCount);
+  const adWatchCount = Math.max(
+    Number.isFinite(existingAdWatchCount) ? existingAdWatchCount : 0,
+    Number.isFinite(incomingAdWatchCount) ? incomingAdWatchCount : 0
+  );
+  const defaultPlayer = createDefaultPlayer(incomingData.playerId, incomingData.nickname);
+
+  return {
+    ...defaultPlayer,
+    ...incomingData,
+    adWatchCount,
+    lastAdRewardTime: existingPlayer && existingPlayer.lastAdRewardTime !== undefined
+      ? existingPlayer.lastAdRewardTime
+      : incomingData.lastAdRewardTime ?? defaultPlayer.lastAdRewardTime,
+    lastAdRewardType: existingPlayer && existingPlayer.lastAdRewardType !== undefined
+      ? existingPlayer.lastAdRewardType
+      : incomingData.lastAdRewardType ?? defaultPlayer.lastAdRewardType,
+    lastAdRewardClientContext: existingPlayer && existingPlayer.lastAdRewardClientContext !== undefined
+      ? existingPlayer.lastAdRewardClientContext
+      : incomingData.lastAdRewardClientContext ?? defaultPlayer.lastAdRewardClientContext,
+    lastSaveTime: now,
+  };
+}
+
 function getLeaderboard(store) {
   return Object.values(store)
     .map((player) => ({
@@ -204,26 +230,27 @@ function createApp() {
     }
 
     const body = ctx.request.body || {};
-    const data = {
+    const incomingData = {
       ...body,
       playerId: body.playerId || playerId,
       nickname: body.nickname || "游客",
       lastSaveTime: Date.now(),
     };
 
-    if (data.playerId !== playerId) {
+    if (incomingData.playerId !== playerId) {
       sendBadRequest(ctx, "body.playerId must match URL playerId");
       return;
     }
 
     try {
-      validatePlayerData(data);
+      validatePlayerData(incomingData);
     } catch (error) {
       sendBadRequest(ctx, error.message);
       return;
     }
 
     const store = readPlayerStore();
+    const data = mergePlayerSaveData(store[playerId], incomingData);
     store[playerId] = data;
     writePlayerStore(store);
     ctx.body = {
@@ -267,6 +294,7 @@ module.exports = {
   writePlayerStore,
   createDefaultPlayer,
   validatePlayerData,
+  mergePlayerSaveData,
   getLeaderboard,
   getRewardValue,
   ALLOWED_REWARD_TYPES,
