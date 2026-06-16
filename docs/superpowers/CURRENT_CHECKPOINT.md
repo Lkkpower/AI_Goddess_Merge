@@ -1,4 +1,4 @@
-# Current Checkpoint - 2026-06-15
+# Current Checkpoint - 2026-06-16
 
 ## Project
 
@@ -54,6 +54,26 @@ Latest development changes completed:
 4. `WechatAdapter.ts` and `DouyinAdapter.ts` resolve rewarded ads from `onClose` completion instead of show success.
 5. `tests/platform-adapter.test.ts` verifies completed watch, early close, show/load failure, and SDK error behavior for platform adapters.
 6. Documentation now records the Stage 3-A platform ad validation checkpoint.
+7. `tests/platform-adapter.test.ts` now covers browser preview fallback behavior for configured ad unit IDs without SDK globals.
+8. `server.js` keeps `adWatchCount` server-owned during normal player saves.
+
+## Current Resume Node
+
+Current development node for next session: **Stage 3-B implementation plan pending**.
+
+Completed today:
+
+- Stage 3-B design was approved.
+- Design spec was written and committed:
+  - `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`
+  - commit `4ad2651 docs: add stage 3b platform auth design`
+
+Next action:
+
+1. Use `writing-plans` to create `docs/superpowers/plans/2026-06-16-stage-3b-platform-auth-request.md`.
+2. Base the plan on the Stage 3-B spec.
+3. After the plan is written and reviewed, execute it with TDD.
+4. Do not start implementation before the plan exists.
 
 ## Key Files
 
@@ -95,6 +115,7 @@ Docs:
 
 - `README.md`
 - `README_CLIENT.md`
+- `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`
 - `docs/superpowers/plans/2026-06-15-stage-3-ad-platform-validation.md`
 - `docs/superpowers/specs/2026-06-12-stage-2b-b-design.md`
 - `docs/superpowers/plans/2026-06-12-stage-2b-b-guided-onboarding-feedback-ad-prep.md`
@@ -106,10 +127,10 @@ Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 39 pass, 0 fail
+# 40 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
-# 29 pass, 0 fail
+# 33 pass, 0 fail
 
 npx.cmd --yes --package typescript@5.4.5 tsc --noEmit 2>&1 | Select-String -Pattern 'assets/scripts'
 # no assets/scripts output
@@ -125,13 +146,14 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3 platform login and request adapter integration**.
+Recommended next node: **Stage 3-B platform auth and request adapter implementation plan**.
 
 Suggested scope:
 
-- Add platform login identity flow for WeChat and Douyin.
-- Replace fetch-only remote calls with platform request adapters.
-- Start leaderboard submission integration after player identity is stable.
+- Add server `/auth/login` with deterministic mock platform identity resolution.
+- Add standardized platform login results for WeChat, Douyin, and web preview.
+- Replace fetch-only remote calls with `PlatformManager.request()`.
+- Scope local saves by selected `playerId` with legacy fallback.
 - Keep server-authoritative board mutation out of scope until request and identity paths are reliable.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
@@ -140,10 +162,15 @@ Avoid changing core merge rules while platform SDK behavior is being integrated.
 
 When reopening development, start from:
 
-1. Open `D:\project\AI_Goddess_Merge` in Cocos Creator.
-2. Confirm Canvas has `assets/scripts/ui/SceneBootstrap.ts` mounted.
-3. Run browser preview.
-4. Check these flows:
+1. Open `D:\project\AI_Goddess_Merge`.
+2. Read `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`.
+3. Use `writing-plans` to create the Stage 3-B implementation plan.
+4. Before implementing, re-run baseline verification:
+   ```powershell
+   node --test tests\server.test.js tests\client-scaffold.test.js
+   npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
+   ```
+5. For Cocos preview checks, open the project in Cocos Creator, confirm Canvas has `assets/scripts/ui/SceneBootstrap.ts` mounted, run browser preview, and check:
    - first-run tutorial
    - tutorial previous/next/finish controls and highlight areas
    - generate clothing
@@ -156,4 +183,3 @@ When reopening development, start from:
    - leaderboard loading and medal rows
    - ad reward choice modal and reward feedback
    - ad failure message path when platform ad returns false
-5. Re-run verification commands before making new changes.
