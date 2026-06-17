@@ -4,11 +4,46 @@ import { DouyinAdapter } from "./DouyinAdapter";
 declare const wx: any;
 declare const tt: any;
 
-type PlatformName = "wechat" | "douyin" | "web";
+export type PlatformName = "wechat" | "douyin" | "web";
+
+export interface PlatformLoginResult {
+    platform: PlatformName;
+    code: string;
+    mock?: boolean;
+    playerId?: string;
+}
+
+export interface PlatformRequestOptions {
+    method?: "GET" | "POST" | "PUT" | "DELETE";
+    headers?: Record<string, string>;
+    body?: string;
+}
+
+export interface PlatformResponse<T = any> {
+    ok: boolean;
+    status: number;
+    data: T;
+}
+
+async function requestWithFetch(url: string, options: PlatformRequestOptions = {}): Promise<PlatformResponse> {
+    if (typeof fetch !== "function") {
+        throw new Error("fetch is not available in this runtime");
+    }
+    const response = await fetch(url, options as any);
+    return {
+        ok: response.ok,
+        status: response.status,
+        data: await response.json(),
+    };
+}
 
 class WebAdapter {
-    async login(): Promise<any> {
-        return { mock: true, platform: "web", playerId: "demo_player" };
+    async login(): Promise<PlatformLoginResult> {
+        return { platform: "web", code: "demo_player", mock: true, playerId: "web_demo_player" };
+    }
+
+    request(url: string, options: PlatformRequestOptions = {}): Promise<PlatformResponse> {
+        return requestWithFetch(url, options);
     }
 
     async showRewardAd(): Promise<boolean> {
@@ -42,8 +77,12 @@ class PlatformManager {
         return "web";
     }
 
-    login(): Promise<any> {
+    login(): Promise<PlatformLoginResult> {
         return this.getAdapter().login();
+    }
+
+    request(url: string, options?: PlatformRequestOptions): Promise<PlatformResponse> {
+        return this.getAdapter().request(url, options);
     }
 
     async showRewardAd(): Promise<boolean> {

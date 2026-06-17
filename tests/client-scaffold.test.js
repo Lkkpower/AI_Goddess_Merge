@@ -414,3 +414,17 @@ test('skin gallery close button is placed at the bottom center of the modal', ()
   assert.match(bootstrap, /createButton\("CloseSkinButton", skinCard, 0, -330, "关闭"/);
 });
 
+test('stage 3B platform manager exports login and request contracts', () => {
+  const platform = read('assets/scripts/platform/PlatformManager.ts');
+
+  assert.match(platform, /export type PlatformName = "wechat" \| "douyin" \| "web"/);
+  assert.match(platform, /export interface PlatformLoginResult/);
+  assert.match(platform, /platform: PlatformName/);
+  assert.match(platform, /code: string/);
+  assert.match(platform, /playerId\?: string/);
+  assert.match(platform, /export interface PlatformRequestOptions/);
+  assert.match(platform, /export interface PlatformResponse<T = any>/);
+  assert.match(platform, /request\(url: string, options\?: PlatformRequestOptions\): Promise<PlatformResponse>/);
+  assert.match(platform, /return this\.getAdapter\(\)\.request\(url, options\)/);
+});
+

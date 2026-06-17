@@ -291,3 +291,67 @@ for (const platform of platformCases) {
         assert.equal(ad.errorHandler, null);
     });
 }
+
+test('WechatAdapter returns a standard mock login when SDK is unavailable', async () => {
+    delete (globalThis as any).wx;
+
+    const login = await new WechatAdapter().login();
+
+    assert.deepEqual(login, {
+        platform: "wechat",
+        code: "mock_wechat_code",
+        mock: true,
+    });
+});
+
+test('DouyinAdapter returns a standard mock login when SDK is unavailable', async () => {
+    delete (globalThis as any).tt;
+
+    const login = await new DouyinAdapter().login();
+
+    assert.deepEqual(login, {
+        platform: "douyin",
+        code: "mock_douyin_code",
+        mock: true,
+    });
+});
+
+test('WechatAdapter wraps wx.request responses', async () => {
+    let requestOptions: any = null;
+    (globalThis as any).wx = {
+        request(options: any) {
+            requestOptions = options;
+            options.success({
+                statusCode: 201,
+                data: { ok: true },
+            });
+        },
+    };
+
+    const response = await new WechatAdapter().request("http://example.test/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform: "wechat" }),
+    });
+
+    assert.equal(response.ok, true);
+    assert.equal(response.status, 201);
+    assert.deepEqual(response.data, { ok: true });
+    assert.equal(requestOptions.url, "http://example.test/auth/login");
+    assert.equal(requestOptions.method, "POST");
+    assert.deepEqual(requestOptions.header, { "Content-Type": "application/json" });
+    assert.deepEqual(requestOptions.data, { platform: "wechat" });
+});
+
+test('DouyinAdapter wraps tt.request failures as rejected promises', async () => {
+    (globalThis as any).tt = {
+        request(options: any) {
+            options.fail({ errMsg: "network failed" });
+        },
+    };
+
+    await assert.rejects(
+        () => new DouyinAdapter().request("http://example.test/player/demo", { method: "GET" }),
+        /network failed/
+    );
+});
