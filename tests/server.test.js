@@ -208,13 +208,89 @@ test('createAuthSession trims auth input and rejects invalid payloads', () => {
   assert.throws(() => server.createAuthSession({ platform: 'web', code: '' }), /code is required/);
 });
 
-function createMockContext(body) {
+function createMockContext(body, headers = {}) {
   return {
     status: 200,
-    request: { body },
+    request: {
+      body,
+      headers,
+    },
     body: undefined,
+    get(name) {
+      return headers[String(name).toLowerCase()] || '';
+    },
   };
 }
+
+test('registerAuthSession stores session records by token', () => {
+  server.sessions.clear();
+  const session = server.createAuthSession({ platform: 'wechat', code: 'session-code' });
+
+  const record = server.registerAuthSession(session, 1781450000000);
+
+  assert.deepEqual(record, {
+    sessionToken: 'mock_session_wechat_wechat_mock_session-code',
+    playerId: 'wechat_wechat_mock_session-code',
+    platform: 'wechat',
+    openid: 'wechat_mock_session-code',
+    createdAt: 1781450000000,
+  });
+  assert.deepEqual(server.sessions.get(session.sessionToken), record);
+});
+
+test('parseBearerToken accepts bearer headers and rejects malformed values', () => {
+  assert.equal(server.parseBearerToken('Bearer token-1'), 'token-1');
+  assert.equal(server.parseBearerToken('bearer token-2'), 'token-2');
+  assert.equal(server.parseBearerToken('Bearer   token-3  '), 'token-3');
+  assert.equal(server.parseBearerToken('Token token-1'), '');
+  assert.equal(server.parseBearerToken(''), '');
+  assert.equal(server.parseBearerToken(undefined), '');
+});
+
+test('getSessionFromAuthorization returns stored sessions or null', () => {
+  server.sessions.clear();
+  const session = server.createAuthSession({ platform: 'web', code: 'demo_player' });
+  const record = server.registerAuthSession(session, 1781450000000);
+
+  assert.deepEqual(server.getSessionFromAuthorization(`Bearer ${session.sessionToken}`), record);
+  assert.equal(server.getSessionFromAuthorization('Bearer missing'), null);
+  assert.equal(server.getSessionFromAuthorization(''), null);
+});
+
+test('requirePlayerSession returns session or writes auth errors', () => {
+  server.sessions.clear();
+  const session = server.createAuthSession({ platform: 'douyin', code: 'owner-code' });
+  server.registerAuthSession(session, 1781450000000);
+
+  const okCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
+  const okSession = server.requirePlayerSession(okCtx, session.playerId);
+  assert.equal(okSession.playerId, session.playerId);
+  assert.equal(okCtx.status, 200);
+
+  const missingCtx = createMockContext({}, {});
+  assert.equal(server.requirePlayerSession(missingCtx, session.playerId), null);
+  assert.equal(missingCtx.status, 401);
+  assert.deepEqual(missingCtx.body, { ok: false, error: 'session is required' });
+
+  const mismatchCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
+  assert.equal(server.requirePlayerSession(mismatchCtx, 'wechat_other'), null);
+  assert.equal(mismatchCtx.status, 403);
+  assert.deepEqual(mismatchCtx.body, { ok: false, error: 'session player mismatch' });
+});
+
+test('loginPlatformPlayer registers the returned session token', () => {
+  server.sessions.clear();
+  const store = {};
+
+  const session = server.loginPlatformPlayer(store, {
+    platform: 'wechat',
+    code: 'login-code',
+    nickname: 'Auth Nick',
+  }, 1781450000000);
+
+  assert.equal(server.sessions.get(session.sessionToken).playerId, session.playerId);
+  assert.equal(server.sessions.get(session.sessionToken).createdAt, 1781450000000);
+});
 
 test('loginPlatformPlayer creates a default player record for a new auth session', () => {
   const store = {};

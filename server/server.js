@@ -11,6 +11,7 @@ const DATA_FILE = path.join(DATA_DIR, "playerData.json");
 const ALLOWED_REWARD_TYPES = ["clear_low_items", "coin_bonus", "high_level_item"];
 const ALLOWED_AUTH_PLATFORMS = ["wechat", "douyin", "web"];
 const AD_REWARD_COOLDOWN_MS = 30 * 1000;
+const sessions = new Map();
 
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -136,6 +137,55 @@ function createAuthSession(payload) {
   };
 }
 
+function registerAuthSession(session, now = Date.now()) {
+  const record = {
+    sessionToken: session.sessionToken,
+    playerId: session.playerId,
+    platform: session.platform,
+    openid: session.openid,
+    createdAt: now,
+  };
+  sessions.set(session.sessionToken, record);
+  return record;
+}
+
+function parseBearerToken(headerValue) {
+  if (typeof headerValue !== "string") {
+    return "";
+  }
+  const match = headerValue.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
+}
+
+function getAuthorizationHeader(ctx) {
+  if (ctx && typeof ctx.get === "function") {
+    return ctx.get("authorization");
+  }
+  return ctx && ctx.request && ctx.request.headers
+    ? ctx.request.headers.authorization || ctx.request.headers.Authorization || ""
+    : "";
+}
+
+function getSessionFromAuthorization(headerValue) {
+  const token = parseBearerToken(headerValue);
+  return token ? sessions.get(token) || null : null;
+}
+
+function requirePlayerSession(ctx, expectedPlayerId) {
+  const session = getSessionFromAuthorization(getAuthorizationHeader(ctx));
+  if (!session) {
+    ctx.status = 401;
+    ctx.body = { ok: false, error: "session is required" };
+    return null;
+  }
+  if (session.playerId !== expectedPlayerId) {
+    ctx.status = 403;
+    ctx.body = { ok: false, error: "session player mismatch" };
+    return null;
+  }
+  return session;
+}
+
 function loginPlatformPlayer(store, payload, now = Date.now()) {
   const session = createAuthSession(payload);
   const nickname = typeof payload.nickname === "string" ? payload.nickname.trim() : "";
@@ -146,6 +196,7 @@ function loginPlatformPlayer(store, payload, now = Date.now()) {
     store[session.playerId] = player;
   }
 
+  registerAuthSession(session, now);
   return session;
 }
 
@@ -365,6 +416,12 @@ module.exports = {
   normalizeRequiredString,
   resolveMockPlatformOpenId,
   createAuthSession,
+  sessions,
+  registerAuthSession,
+  parseBearerToken,
+  getAuthorizationHeader,
+  getSessionFromAuthorization,
+  requirePlayerSession,
   loginPlatformPlayer,
   handleAuthLogin,
   normalizeAdRewardClientContext,
