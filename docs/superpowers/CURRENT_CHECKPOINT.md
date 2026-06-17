@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-B completed**.
+Current development node: **Stage 3-C in progress**.
 
 Completed capabilities:
 
@@ -48,6 +48,17 @@ Completed capabilities:
 - Remote save, remote load, leaderboard, and ad reward validation route through `PlatformManager.request()`.
 - Game initialization selects an authenticated `playerId` when auth succeeds and keeps local play available when auth fails.
 - Local saves are scoped by selected `playerId` with legacy fallback normalization.
+- Server session helpers are in place and player-owned writes now require matching bearer sessions.
+
+## Recent Stage 3-C Progress
+
+Completed so far:
+
+1. `server.js` now stores mock sessions in memory and exposes helper functions for bearer parsing and session lookup.
+2. `server.js` now rejects player save and ad reward write requests when the bearer session is missing or points at another player.
+3. `tests/server.test.js` covers the new session helpers and write authorization behavior.
+4. `server.js` routes `/player/:playerId` and `/ad/reward` through helper functions that enforce ownership.
+5. Stage 3-C Task 1 and Task 2 are committed and verified.
 
 ## Recent Stage 3-A Changes
 
@@ -64,9 +75,9 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-C planning pending**.
+Current development node for next session: **Stage 3-C Task 3 pending**.
 
-Recommended next node: server-side session validation and account migration design, or server-authoritative board mutation design after platform identity has been verified in preview.
+Recommended next node: client session token propagation in `StorageManager`, then explicit legacy local migration, then checkpoint update.
 
 ## Key Files
 
@@ -140,12 +151,13 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-C planning**.
+Recommended next node: **Stage 3-C implementation continuation**.
 
 Suggested scope:
 
-- Design server-side session validation and account migration after platform identity has been verified in preview.
-- Consider server-authoritative board mutation once request and identity paths are reliable.
+- Propagate session tokens from `loginRemote()` into player-owned requests.
+- Make legacy local-save migration explicit and testable.
+- Finish Stage 3-C checkpoint and verification after client token propagation is in place.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
 
@@ -156,12 +168,13 @@ When reopening development, start from:
 1. Open `D:\project\AI_Goddess_Merge`.
 2. Read `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`.
 3. Read `docs/superpowers/plans/2026-06-16-stage-3b-platform-auth-request.md` for the completed Stage 3-B implementation checkpoint.
-4. Before planning Stage 3-C, re-run baseline verification:
+4. Read `docs/superpowers/plans/2026-06-17-stage-3c-session-validation-light-migration.md` for the active Stage 3-C implementation plan.
+5. Before resuming Stage 3-C, re-run baseline verification:
    ```powershell
    node --test tests\server.test.js tests\client-scaffold.test.js
    npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
    ```
-5. For Cocos preview checks, open the project in Cocos Creator, confirm Canvas has `assets/scripts/ui/SceneBootstrap.ts` mounted, run browser preview, and check:
+6. For Cocos preview checks, open the project in Cocos Creator, confirm Canvas has `assets/scripts/ui/SceneBootstrap.ts` mounted, run browser preview, and check:
    - first-run tutorial
    - tutorial previous/next/finish controls and highlight areas
    - generate clothing
