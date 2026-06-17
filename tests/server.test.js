@@ -175,3 +175,35 @@ test('mergePlayerSaveData prevents stale saves from rolling back adWatchCount', 
 
   assert.equal(merged.adWatchCount, 3);
 });
+
+test('resolveMockPlatformOpenId maps supported platforms deterministically', () => {
+  assert.equal(server.resolveMockPlatformOpenId('wechat', 'abc123'), 'wechat_mock_abc123');
+  assert.equal(server.resolveMockPlatformOpenId('douyin', 'abc123'), 'douyin_mock_abc123');
+  assert.equal(server.resolveMockPlatformOpenId('web', 'demo_player'), 'web_mock_demo_player');
+  assert.throws(() => server.resolveMockPlatformOpenId('ios', 'abc123'), /platform is not supported/);
+});
+
+test('createAuthSession returns deterministic player identity and token', () => {
+  const session = server.createAuthSession({
+    platform: 'wechat',
+    code: 'login-code',
+  });
+
+  assert.deepEqual(session, {
+    ok: true,
+    platform: 'wechat',
+    openid: 'wechat_mock_login-code',
+    playerId: 'wechat_wechat_mock_login-code',
+    sessionToken: 'mock_session_wechat_wechat_mock_login-code',
+  });
+});
+
+test('createAuthSession trims auth input and rejects invalid payloads', () => {
+  assert.equal(
+    server.createAuthSession({ platform: ' douyin ', code: ' code-1 ' }).playerId,
+    'douyin_douyin_mock_code-1'
+  );
+  assert.throws(() => server.createAuthSession({ platform: '', code: 'x' }), /platform is required/);
+  assert.throws(() => server.createAuthSession({ platform: 'ios', code: 'x' }), /platform is not supported/);
+  assert.throws(() => server.createAuthSession({ platform: 'web', code: '' }), /code is required/);
+});

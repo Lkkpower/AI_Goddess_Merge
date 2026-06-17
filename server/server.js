@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "playerData.json");
 const ALLOWED_REWARD_TYPES = ["clear_low_items", "coin_bonus", "high_level_item"];
+const ALLOWED_AUTH_PLATFORMS = ["wechat", "douyin", "web"];
 const AD_REWARD_COOLDOWN_MS = 30 * 1000;
 
 function ensureDataFile() {
@@ -96,6 +97,42 @@ function mergePlayerSaveData(existingPlayer, incomingData, now = Date.now()) {
       ? existingPlayer.lastAdRewardClientContext
       : incomingData.lastAdRewardClientContext ?? defaultPlayer.lastAdRewardClientContext,
     lastSaveTime: now,
+  };
+}
+
+function normalizeRequiredString(value, fieldName) {
+  if (typeof value !== "string") {
+    throw new Error(`${fieldName} is required`);
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error(`${fieldName} is required`);
+  }
+  return trimmed;
+}
+
+function resolveMockPlatformOpenId(platform, code) {
+  if (!ALLOWED_AUTH_PLATFORMS.includes(platform)) {
+    throw new Error("platform is not supported");
+  }
+  return `${platform}_mock_${code}`;
+}
+
+function createAuthSession(payload) {
+  const platform = normalizeRequiredString(payload && payload.platform, "platform");
+  const code = normalizeRequiredString(payload && payload.code, "code");
+  if (!ALLOWED_AUTH_PLATFORMS.includes(platform)) {
+    throw new Error("platform is not supported");
+  }
+
+  const openid = resolveMockPlatformOpenId(platform, code);
+  const playerId = `${platform}_${openid}`;
+  return {
+    ok: true,
+    platform,
+    openid,
+    playerId,
+    sessionToken: `mock_session_${playerId}`,
   };
 }
 
@@ -294,7 +331,11 @@ module.exports = {
   getLeaderboard,
   getRewardValue,
   ALLOWED_REWARD_TYPES,
+  ALLOWED_AUTH_PLATFORMS,
   AD_REWARD_COOLDOWN_MS,
+  normalizeRequiredString,
+  resolveMockPlatformOpenId,
+  createAuthSession,
   normalizeAdRewardClientContext,
   claimAdRewardForPlayer,
   sendBadRequest,
