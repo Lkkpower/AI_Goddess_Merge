@@ -353,3 +353,102 @@ test('handleAuthLogin writes auth result or bad request response', () => {
     error: 'platform is not supported',
   });
 });
+
+function createAuthorizedSession(platform, code, now = 1781450000000) {
+  const session = server.createAuthSession({ platform, code });
+  server.registerAuthSession(session, now);
+  return session;
+}
+
+test('handlePlayerSave rejects missing or mismatched sessions before saving', () => {
+  server.sessions.clear();
+  const store = {};
+  const saveData = {
+    ...server.createDefaultPlayer('wechat_wechat_mock_owner'),
+    coins: 50,
+  };
+
+  const missingCtx = createMockContext(saveData);
+  missingCtx.params = { playerId: saveData.playerId };
+  server.handlePlayerSave(missingCtx, store, 1781450000000);
+  assert.equal(missingCtx.status, 401);
+  assert.equal(store[saveData.playerId], undefined);
+
+  const otherSession = createAuthorizedSession('wechat', 'other');
+  const mismatchCtx = createMockContext(saveData, { authorization: `Bearer ${otherSession.sessionToken}` });
+  mismatchCtx.params = { playerId: saveData.playerId };
+  server.handlePlayerSave(mismatchCtx, store, 1781450000000);
+  assert.equal(mismatchCtx.status, 403);
+  assert.equal(store[saveData.playerId], undefined);
+});
+
+test('handlePlayerSave writes player data with a matching session', () => {
+  server.sessions.clear();
+  const store = {};
+  const session = createAuthorizedSession('wechat', 'owner');
+  const saveData = {
+    ...server.createDefaultPlayer(session.playerId, 'Owner'),
+    coins: 88,
+    score: 120,
+  };
+  const ctx = createMockContext(saveData, { authorization: `Bearer ${session.sessionToken}` });
+  ctx.params = { playerId: session.playerId };
+
+  server.handlePlayerSave(ctx, store, 1781450000000);
+
+  assert.equal(ctx.status, 200);
+  assert.deepEqual(ctx.body, { ok: true, playerId: session.playerId });
+  assert.equal(store[session.playerId].coins, 88);
+  assert.equal(store[session.playerId].score, 120);
+});
+
+test('handlePlayerLoad remains public without token and rejects invalid token when supplied', () => {
+  server.sessions.clear();
+  const publicPlayer = server.createDefaultPlayer('public_player', 'Public');
+  const store = { public_player: publicPlayer };
+
+  const publicCtx = createMockContext({});
+  publicCtx.params = { playerId: 'public_player' };
+  server.handlePlayerLoad(publicCtx, store);
+  assert.equal(publicCtx.status, 200);
+  assert.equal(publicCtx.body.playerId, 'public_player');
+
+  const invalidCtx = createMockContext({}, { authorization: 'Bearer missing' });
+  invalidCtx.params = { playerId: 'public_player' };
+  server.handlePlayerLoad(invalidCtx, store);
+  assert.equal(invalidCtx.status, 401);
+  assert.deepEqual(invalidCtx.body, { ok: false, error: 'session is required' });
+
+  const otherSession = createAuthorizedSession('web', 'other');
+  const mismatchCtx = createMockContext({}, { authorization: `Bearer ${otherSession.sessionToken}` });
+  mismatchCtx.params = { playerId: 'public_player' };
+  server.handlePlayerLoad(mismatchCtx, store);
+  assert.equal(mismatchCtx.status, 403);
+});
+
+test('handleAdRewardClaim requires a matching player session', () => {
+  server.sessions.clear();
+  const store = {};
+  const session = createAuthorizedSession('douyin', 'reward-owner');
+
+  const missingCtx = createMockContext({ playerId: session.playerId, rewardType: 'coin_bonus' });
+  server.handleAdRewardClaim(missingCtx, store, 1781450000000);
+  assert.equal(missingCtx.status, 401);
+
+  const otherSession = createAuthorizedSession('douyin', 'reward-other');
+  const mismatchCtx = createMockContext(
+    { playerId: session.playerId, rewardType: 'coin_bonus' },
+    { authorization: `Bearer ${otherSession.sessionToken}` }
+  );
+  server.handleAdRewardClaim(mismatchCtx, store, 1781450000000);
+  assert.equal(mismatchCtx.status, 403);
+
+  const okCtx = createMockContext(
+    { playerId: session.playerId, rewardType: 'coin_bonus' },
+    { authorization: `Bearer ${session.sessionToken}` }
+  );
+  server.handleAdRewardClaim(okCtx, store, 1781450000000);
+  assert.equal(okCtx.status, 200);
+  assert.equal(okCtx.body.ok, true);
+  assert.equal(okCtx.body.rewardType, 'coin_bonus');
+});

@@ -208,6 +208,82 @@ function handleAuthLogin(ctx, store, now = Date.now()) {
   }
 }
 
+function handlePlayerLoad(ctx, store) {
+  const { playerId } = ctx.params;
+  if (!playerId) {
+    sendBadRequest(ctx, "playerId is required");
+    return;
+  }
+
+  const authorization = getAuthorizationHeader(ctx);
+  if (authorization) {
+    const session = requirePlayerSession(ctx, playerId);
+    if (!session) {
+      return;
+    }
+  }
+
+  ctx.body = store[playerId] || createDefaultPlayer(playerId);
+}
+
+function handlePlayerSave(ctx, store, now = Date.now()) {
+  const { playerId } = ctx.params;
+  if (!playerId) {
+    sendBadRequest(ctx, "playerId is required");
+    return;
+  }
+  const session = requirePlayerSession(ctx, playerId);
+  if (!session) {
+    return;
+  }
+
+  const body = ctx.request.body || {};
+  const incomingData = {
+    ...body,
+    playerId: body.playerId || playerId,
+    nickname: body.nickname || "游客",
+    lastSaveTime: now,
+  };
+
+  if (incomingData.playerId !== playerId) {
+    sendBadRequest(ctx, "body.playerId must match URL playerId");
+    return;
+  }
+
+  try {
+    validatePlayerData(incomingData);
+  } catch (error) {
+    sendBadRequest(ctx, error.message);
+    return;
+  }
+
+  const data = mergePlayerSaveData(store[playerId], incomingData, now);
+  store[playerId] = data;
+  ctx.body = {
+    ok: true,
+    playerId,
+  };
+}
+
+function handleAdRewardClaim(ctx, store, now = Date.now()) {
+  const body = ctx.request.body || {};
+  const playerId = body.playerId;
+  if (!playerId || typeof playerId !== "string") {
+    sendBadRequest(ctx, "playerId is required");
+    return;
+  }
+  const session = requirePlayerSession(ctx, playerId);
+  if (!session) {
+    return;
+  }
+
+  try {
+    ctx.body = claimAdRewardForPlayer(store, body, now);
+  } catch (error) {
+    sendBadRequest(ctx, error.message);
+  }
+}
+
 function getLeaderboard(store) {
   return Object.values(store)
     .map((player) => ({
@@ -325,51 +401,16 @@ function createApp() {
   });
 
   router.get("/player/:playerId", (ctx) => {
-    const { playerId } = ctx.params;
-    if (!playerId) {
-      sendBadRequest(ctx, "playerId is required");
-      return;
-    }
-
     const store = readPlayerStore();
-    ctx.body = store[playerId] || createDefaultPlayer(playerId);
+    handlePlayerLoad(ctx, store);
   });
 
   router.post("/player/:playerId", (ctx) => {
-    const { playerId } = ctx.params;
-    if (!playerId) {
-      sendBadRequest(ctx, "playerId is required");
-      return;
-    }
-
-    const body = ctx.request.body || {};
-    const incomingData = {
-      ...body,
-      playerId: body.playerId || playerId,
-      nickname: body.nickname || "游客",
-      lastSaveTime: Date.now(),
-    };
-
-    if (incomingData.playerId !== playerId) {
-      sendBadRequest(ctx, "body.playerId must match URL playerId");
-      return;
-    }
-
-    try {
-      validatePlayerData(incomingData);
-    } catch (error) {
-      sendBadRequest(ctx, error.message);
-      return;
-    }
-
     const store = readPlayerStore();
-    const data = mergePlayerSaveData(store[playerId], incomingData);
-    store[playerId] = data;
-    writePlayerStore(store);
-    ctx.body = {
-      ok: true,
-      playerId,
-    };
+    handlePlayerSave(ctx, store);
+    if (ctx.status < 400) {
+      writePlayerStore(store);
+    }
   });
 
   router.get("/leaderboard", (ctx) => {
@@ -379,12 +420,9 @@ function createApp() {
 
   router.post("/ad/reward", (ctx) => {
     const store = readPlayerStore();
-    try {
-      const result = claimAdRewardForPlayer(store, ctx.request.body || {});
+    handleAdRewardClaim(ctx, store);
+    if (ctx.status < 400) {
       writePlayerStore(store);
-      ctx.body = result;
-    } catch (error) {
-      sendBadRequest(ctx, error.message);
     }
   });
 
@@ -424,6 +462,9 @@ module.exports = {
   requirePlayerSession,
   loginPlatformPlayer,
   handleAuthLogin,
+  handlePlayerLoad,
+  handlePlayerSave,
+  handleAdRewardClaim,
   normalizeAdRewardClientContext,
   claimAdRewardForPlayer,
   sendBadRequest,
