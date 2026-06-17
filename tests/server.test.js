@@ -207,3 +207,73 @@ test('createAuthSession trims auth input and rejects invalid payloads', () => {
   assert.throws(() => server.createAuthSession({ platform: 'ios', code: 'x' }), /platform is not supported/);
   assert.throws(() => server.createAuthSession({ platform: 'web', code: '' }), /code is required/);
 });
+
+function createMockContext(body) {
+  return {
+    status: 200,
+    request: { body },
+    body: undefined,
+  };
+}
+
+test('loginPlatformPlayer creates a default player record for a new auth session', () => {
+  const store = {};
+  const ctx = createMockContext({
+    platform: 'wechat',
+    code: 'login-code',
+    nickname: 'Auth Nick',
+  });
+
+  const result = server.loginPlatformPlayer(store, ctx.request.body, 1781450000000);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.platform, 'wechat');
+  assert.equal(result.openid, 'wechat_mock_login-code');
+  assert.equal(result.playerId, 'wechat_wechat_mock_login-code');
+  assert.equal(result.sessionToken, 'mock_session_wechat_wechat_mock_login-code');
+  assert.equal(store['wechat_wechat_mock_login-code'].nickname, 'Auth Nick');
+  assert.equal(store['wechat_wechat_mock_login-code'].lastSaveTime, 1781450000000);
+});
+
+test('loginPlatformPlayer preserves existing gameplay data on repeat login', () => {
+  const store = {
+    web_web_mock_demo_player: {
+      ...server.createDefaultPlayer('web_web_mock_demo_player', 'Existing'),
+      coins: 300,
+      score: 900,
+      highestItemLevel: 7,
+    },
+  };
+
+  const result = server.loginPlatformPlayer(store, {
+    platform: 'web',
+    code: 'demo_player',
+    nickname: 'New Nick',
+  });
+
+  assert.equal(result.playerId, 'web_web_mock_demo_player');
+  assert.equal(store.web_web_mock_demo_player.nickname, 'Existing');
+  assert.equal(store.web_web_mock_demo_player.coins, 300);
+  assert.equal(store.web_web_mock_demo_player.score, 900);
+  assert.equal(store.web_web_mock_demo_player.highestItemLevel, 7);
+});
+
+test('handleAuthLogin writes auth result or bad request response', () => {
+  const store = {};
+  const okCtx = createMockContext({ platform: 'douyin', code: 'abc', nickname: 'Douyin' });
+
+  server.handleAuthLogin(okCtx, store, 1781450000000);
+
+  assert.equal(okCtx.status, 200);
+  assert.equal(okCtx.body.playerId, 'douyin_douyin_mock_abc');
+  assert.equal(store.douyin_douyin_mock_abc.nickname, 'Douyin');
+
+  const badCtx = createMockContext({ platform: 'ios', code: 'abc' });
+  server.handleAuthLogin(badCtx, store, 1781450000000);
+
+  assert.equal(badCtx.status, 400);
+  assert.deepEqual(badCtx.body, {
+    ok: false,
+    error: 'platform is not supported',
+  });
+});

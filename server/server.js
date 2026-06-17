@@ -136,6 +136,27 @@ function createAuthSession(payload) {
   };
 }
 
+function loginPlatformPlayer(store, payload, now = Date.now()) {
+  const session = createAuthSession(payload);
+  const nickname = typeof payload.nickname === "string" ? payload.nickname.trim() : "";
+
+  if (!store[session.playerId]) {
+    const player = createDefaultPlayer(session.playerId, nickname || "游客");
+    player.lastSaveTime = now;
+    store[session.playerId] = player;
+  }
+
+  return session;
+}
+
+function handleAuthLogin(ctx, store, now = Date.now()) {
+  try {
+    ctx.body = loginPlatformPlayer(store, ctx.request.body || {}, now);
+  } catch (error) {
+    sendBadRequest(ctx, error.message);
+  }
+}
+
 function getLeaderboard(store) {
   return Object.values(store)
     .map((player) => ({
@@ -244,6 +265,14 @@ function createApp() {
     };
   });
 
+  router.post("/auth/login", (ctx) => {
+    const store = readPlayerStore();
+    handleAuthLogin(ctx, store);
+    if (ctx.status !== 400) {
+      writePlayerStore(store);
+    }
+  });
+
   router.get("/player/:playerId", (ctx) => {
     const { playerId } = ctx.params;
     if (!playerId) {
@@ -336,6 +365,8 @@ module.exports = {
   normalizeRequiredString,
   resolveMockPlatformOpenId,
   createAuthSession,
+  loginPlatformPlayer,
+  handleAuthLogin,
   normalizeAdRewardClientContext,
   claimAdRewardForPlayer,
   sendBadRequest,
