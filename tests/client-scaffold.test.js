@@ -457,3 +457,22 @@ test('stage 3B storage manager scopes local saves by selected player id', () => 
   assert.match(storage, /clearLocal\(playerId: string\): void/);
 });
 
+test('stage 3B game manager authenticates before selecting local player data', () => {
+  const gameManager = read('assets/scripts/core/GameManager.ts');
+
+  assert.match(gameManager, /import \{ platformManager \}/);
+  assert.match(gameManager, /private readonly fallbackPlayerId = "demo_player"/);
+  assert.match(gameManager, /onLoad\(\): void/);
+  assert.match(gameManager, /this\.initGameAsync\(\)/);
+  assert.match(gameManager, /private async initGameAsync\(\): Promise<void>/);
+  assert.match(gameManager, /const playerId = await this\.resolvePlayerId\(\)/);
+  assert.match(gameManager, /private async resolvePlayerId\(\): Promise<string>/);
+  assert.match(gameManager, /const login = await platformManager\.login\(\)/);
+  assert.match(gameManager, /const auth = await storageManager\.loginRemote\(\{/);
+  assert.match(gameManager, /platform: login\.platform/);
+  assert.match(gameManager, /code: login\.code/);
+  assert.match(gameManager, /return auth\.playerId/);
+  assert.match(gameManager, /return login\.playerId \|\| this\.fallbackPlayerId/);
+  assert.match(gameManager, /storageManager\.loadLocal\(playerId\)/);
+});
+

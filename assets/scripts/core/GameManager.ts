@@ -7,6 +7,7 @@ import { getItemConfigById } from "../data/ItemConfig";
 import { claimDailyReward, DailyRewardResult } from "../data/DailyReward";
 import { eventManager, GameEvents } from "./EventManager";
 import { storageManager } from "./StorageManager";
+import { platformManager } from "../platform/PlatformManager";
 const { ccclass } = _decorator;
 
 export interface AdRewardClaimResult {
@@ -23,11 +24,15 @@ export class GameManager extends Component {
     readonly boardManager = new BoardManager();
     private playerData: PlayerData | null = null;
     private initialized = false;
+    private readonly fallbackPlayerId = "demo_player";
 
     onLoad(): void {
         GameManager.instance = this;
         this.registerEvents();
-        this.initGame();
+        this.initGameAsync().catch((error) => {
+            console.warn("[GameManager] async init failed", error);
+            this.initGame(this.fallbackPlayerId);
+        });
     }
 
     onDestroy(): void {
@@ -35,6 +40,11 @@ export class GameManager extends Component {
         if (GameManager.instance === this) {
             GameManager.instance = null;
         }
+    }
+
+    private async initGameAsync(): Promise<void> {
+        const playerId = await this.resolvePlayerId();
+        this.initGame(playerId);
     }
 
     initGame(playerId: string = "demo_player"): void {
@@ -57,9 +67,26 @@ export class GameManager extends Component {
         eventManager.emit(GameEvents.GAME_INIT, data);
     }
 
+    private async resolvePlayerId(): Promise<string> {
+        try {
+            const login = await platformManager.login();
+            const auth = await storageManager.loginRemote({
+                platform: login.platform,
+                code: login.code,
+            });
+            if (auth && auth.ok && auth.playerId) {
+                return auth.playerId;
+            }
+            return login.playerId || this.fallbackPlayerId;
+        } catch (error) {
+            console.warn("[GameManager] platform auth failed", error);
+            return this.fallbackPlayerId;
+        }
+    }
+
     getPlayerData(): PlayerData {
         if (!this.playerData) {
-            this.playerData = createDefaultPlayerData("demo_player");
+            this.playerData = createDefaultPlayerData(this.fallbackPlayerId);
         }
         return this.playerData;
     }
@@ -172,8 +199,8 @@ export class GameManager extends Component {
         });
     }
 
-    loadGame(playerId: string = "demo_player"): void {
-        const localData = storageManager.loadLocal();
+    loadGame(playerId: string = this.fallbackPlayerId): void {
+        const localData = storageManager.loadLocal(playerId);
         this.playerData = localData ? normalizePlayerData(localData) : createDefaultPlayerData(playerId);
     }
 
