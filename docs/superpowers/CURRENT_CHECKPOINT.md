@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-A completed**.
+Current development node: **Stage 3-B completed**.
 
 Completed capabilities:
 
@@ -43,6 +43,11 @@ Completed capabilities:
 - Server ad reward validation accepts the same reward types used by the client.
 - Server ad reward claims record watch count, last reward type, last reward time, and client reward context.
 - Rapid duplicate ad reward claims are rejected server-side.
+- Server `/auth/login` returns deterministic mock identities for WeChat, Douyin, and web preview.
+- Platform adapters expose standardized login results and request wrappers.
+- Remote save, remote load, leaderboard, and ad reward validation route through `PlatformManager.request()`.
+- Game initialization selects an authenticated `playerId` when auth succeeds and keeps local play available when auth fails.
+- Local saves are scoped by selected `playerId` with legacy fallback normalization.
 
 ## Recent Stage 3-A Changes
 
@@ -59,21 +64,9 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-B implementation plan pending**.
+Current development node for next session: **Stage 3-C planning pending**.
 
-Completed today:
-
-- Stage 3-B design was approved.
-- Design spec was written and committed:
-  - `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`
-  - commit `4ad2651 docs: add stage 3b platform auth design`
-
-Next action:
-
-1. Use `writing-plans` to create `docs/superpowers/plans/2026-06-16-stage-3b-platform-auth-request.md`.
-2. Base the plan on the Stage 3-B spec.
-3. After the plan is written and reviewed, execute it with TDD.
-4. Do not start implementation before the plan exists.
+Recommended next node: server-side session validation and account migration design, or server-authoritative board mutation design after platform identity has been verified in preview.
 
 ## Key Files
 
@@ -116,6 +109,7 @@ Docs:
 - `README.md`
 - `README_CLIENT.md`
 - `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`
+- `docs/superpowers/plans/2026-06-16-stage-3b-platform-auth-request.md`
 - `docs/superpowers/plans/2026-06-15-stage-3-ad-platform-validation.md`
 - `docs/superpowers/specs/2026-06-12-stage-2b-b-design.md`
 - `docs/superpowers/plans/2026-06-12-stage-2b-b-guided-onboarding-feedback-ad-prep.md`
@@ -146,15 +140,12 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-B platform auth and request adapter implementation plan**.
+Recommended next node: **Stage 3-C planning**.
 
 Suggested scope:
 
-- Add server `/auth/login` with deterministic mock platform identity resolution.
-- Add standardized platform login results for WeChat, Douyin, and web preview.
-- Replace fetch-only remote calls with `PlatformManager.request()`.
-- Scope local saves by selected `playerId` with legacy fallback.
-- Keep server-authoritative board mutation out of scope until request and identity paths are reliable.
+- Design server-side session validation and account migration after platform identity has been verified in preview.
+- Consider server-authoritative board mutation once request and identity paths are reliable.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
 
@@ -164,8 +155,8 @@ When reopening development, start from:
 
 1. Open `D:\project\AI_Goddess_Merge`.
 2. Read `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`.
-3. Use `writing-plans` to create the Stage 3-B implementation plan.
-4. Before implementing, re-run baseline verification:
+3. Read `docs/superpowers/plans/2026-06-16-stage-3b-platform-auth-request.md` for the completed Stage 3-B implementation checkpoint.
+4. Before planning Stage 3-C, re-run baseline verification:
    ```powershell
    node --test tests\server.test.js tests\client-scaffold.test.js
    npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
