@@ -428,3 +428,32 @@ test('stage 3B platform manager exports login and request contracts', () => {
   assert.match(platform, /return this\.getAdapter\(\)\.request\(url, options\)/);
 });
 
+test('stage 3B storage manager authenticates remotely through platform requests', () => {
+  const storage = read('assets/scripts/core/StorageManager.ts');
+
+  assert.match(storage, /import \{ platformManager, PlatformName/);
+  assert.match(storage, /export interface AuthLoginPayload/);
+  assert.match(storage, /platform: PlatformName/);
+  assert.match(storage, /export interface AuthLoginResponse/);
+  assert.match(storage, /sessionToken: string/);
+  assert.match(storage, /loginRemote\(payload: AuthLoginPayload\): Promise<AuthLoginResponse \| null>/);
+  assert.match(storage, /this\.request\("\/auth\/login"/);
+  assert.match(storage, /platformManager\.request\(`\$\{this\.remoteBaseUrl\}\$\{path\}`/);
+  assert.doesNotMatch(storage, /await fetch\(`/);
+});
+
+test('stage 3B storage manager scopes local saves by selected player id', () => {
+  const storage = read('assets/scripts/core/StorageManager.ts');
+
+  assert.match(storage, /const LEGACY_LOCAL_SAVE_KEY = "AI_GODDESS_MERGE_PLAYER_DATA"/);
+  assert.match(storage, /private getLocalSaveKey\(playerId: string\): string/);
+  assert.match(storage, /AI_GODDESS_MERGE_PLAYER_DATA_\$\{playerId\}/);
+  assert.match(storage, /saveLocal\(playerData: PlayerData\): void/);
+  assert.match(storage, /sys\.localStorage\.setItem\(this\.getLocalSaveKey\(data\.playerId\)/);
+  assert.match(storage, /loadLocal\(playerId: string\): PlayerData \| null/);
+  assert.match(storage, /sys\.localStorage\.getItem\(this\.getLocalSaveKey\(playerId\)\)/);
+  assert.match(storage, /sys\.localStorage\.getItem\(LEGACY_LOCAL_SAVE_KEY\)/);
+  assert.match(storage, /data\.playerId = playerId/);
+  assert.match(storage, /clearLocal\(playerId: string\): void/);
+});
+

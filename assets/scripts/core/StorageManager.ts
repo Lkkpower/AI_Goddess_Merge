@@ -2,8 +2,9 @@
 import { AdRewardType } from "../data/AdRewardConfig";
 import { RemoteLeaderboardRow } from "../data/LeaderboardData";
 import { PlayerData, clonePlayerData } from "../data/PlayerData";
+import { platformManager, PlatformName, PlatformRequestOptions } from "../platform/PlatformManager";
 
-const LOCAL_SAVE_KEY = "AI_GODDESS_MERGE_PLAYER_DATA";
+const LEGACY_LOCAL_SAVE_KEY = "AI_GODDESS_MERGE_PLAYER_DATA";
 
 export interface AdRewardClaimPayload {
     playerId: string;
@@ -14,6 +15,20 @@ export interface AdRewardClaimPayload {
     clientHighestItemLevel?: number;
 }
 
+export interface AuthLoginPayload {
+    platform: PlatformName;
+    code: string;
+    nickname?: string;
+}
+
+export interface AuthLoginResponse {
+    ok: boolean;
+    platform: PlatformName;
+    openid: string;
+    playerId: string;
+    sessionToken: string;
+}
+
 class StorageManager {
     remoteBaseUrl = "http://localhost:3000";
 
@@ -21,30 +36,51 @@ class StorageManager {
         try {
             const data = clonePlayerData(playerData);
             data.lastSaveTime = Date.now();
-            sys.localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(data));
+            sys.localStorage.setItem(this.getLocalSaveKey(data.playerId), JSON.stringify(data));
         } catch (error) {
             console.warn("[StorageManager] saveLocal failed", error);
         }
     }
 
-    loadLocal(): PlayerData | null {
+    loadLocal(playerId: string): PlayerData | null {
         try {
-            const raw = sys.localStorage.getItem(LOCAL_SAVE_KEY);
+            const raw = sys.localStorage.getItem(this.getLocalSaveKey(playerId))
+                || sys.localStorage.getItem(LEGACY_LOCAL_SAVE_KEY);
             if (!raw) {
                 return null;
             }
-            return JSON.parse(raw) as PlayerData;
+            const data = JSON.parse(raw) as PlayerData;
+            data.playerId = playerId;
+            return data;
         } catch (error) {
             console.warn("[StorageManager] loadLocal failed", error);
             return null;
         }
     }
 
-    clearLocal(): void {
+    clearLocal(playerId: string): void {
         try {
-            sys.localStorage.removeItem(LOCAL_SAVE_KEY);
+            sys.localStorage.removeItem(this.getLocalSaveKey(playerId));
         } catch (error) {
             console.warn("[StorageManager] clearLocal failed", error);
+        }
+    }
+
+    private getLocalSaveKey(playerId: string): string {
+        return `AI_GODDESS_MERGE_PLAYER_DATA_${playerId}`;
+    }
+
+    async loginRemote(payload: AuthLoginPayload): Promise<AuthLoginResponse | null> {
+        try {
+            const response = await this.request("/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            return response as AuthLoginResponse;
+        } catch (error) {
+            console.warn("[StorageManager] loginRemote failed", error);
+            return null;
         }
     }
 
@@ -95,17 +131,12 @@ class StorageManager {
         }
     }
 
-    private async request(path: string, options: RequestInit): Promise<any> {
-        // TODO: 微信/抖音小游戏环境如不支持 fetch，应在这里替换为 wx.request / tt.request。
-        if (typeof fetch !== "function") {
-            throw new Error("fetch is not available in this runtime");
-        }
-
-        const response = await fetch(`${this.remoteBaseUrl}${path}`, options);
+    private async request(path: string, options: PlatformRequestOptions): Promise<any> {
+        const response = await platformManager.request(`${this.remoteBaseUrl}${path}`, options);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        return response.json();
+        return response.data;
     }
 }
 
