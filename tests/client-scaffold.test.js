@@ -476,3 +476,27 @@ test('stage 3B game manager authenticates before selecting local player data', (
   assert.match(gameManager, /storageManager\.loadLocal\(playerId\)/);
 });
 
+test('stage 3C storage manager stores session tokens from remote login', () => {
+  const storage = read('assets/scripts/core/StorageManager.ts');
+
+  assert.match(storage, /private sessionToken = ""/);
+  assert.match(storage, /setSessionToken\(sessionToken: string\): void/);
+  assert.match(storage, /getSessionToken\(\): string/);
+  assert.match(storage, /clearSessionToken\(\): void/);
+  assert.match(storage, /this\.setSessionToken\(response\.sessionToken\)/);
+  assert.match(storage, /if \(response && response\.ok && response\.sessionToken\)/);
+});
+
+test('stage 3C storage manager attaches auth headers only to player-owned requests', () => {
+  const storage = read('assets/scripts/core/StorageManager.ts');
+
+  assert.match(storage, /private withAuthHeaders\(headers: Record<string, string> = \{\}\): Record<string, string>/);
+  assert.match(storage, /Authorization: `Bearer \$\{this\.sessionToken\}`/);
+  assert.match(storage, /headers: this\.withAuthHeaders\(\{ "Content-Type": "application\/json" \}\)/);
+  assert.match(storage, /this\.request\(`\/player\/\$\{playerData\.playerId\}`/);
+  assert.match(storage, /this\.request\(`\/player\/\$\{playerId\}`/);
+  assert.match(storage, /this\.request\("\/ad\/reward"/);
+  assert.match(storage, /this\.request\("\/auth\/login", \{\s*method: "POST",\s*headers: \{ "Content-Type": "application\/json" \}/s);
+  assert.match(storage, /this\.request\("\/leaderboard", \{ method: "GET" \}/);
+});
+

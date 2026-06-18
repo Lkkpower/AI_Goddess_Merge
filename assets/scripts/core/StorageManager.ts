@@ -31,6 +31,19 @@ export interface AuthLoginResponse {
 
 class StorageManager {
     remoteBaseUrl = "http://localhost:3000";
+    private sessionToken = "";
+
+    setSessionToken(sessionToken: string): void {
+        this.sessionToken = sessionToken.trim();
+    }
+
+    getSessionToken(): string {
+        return this.sessionToken;
+    }
+
+    clearSessionToken(): void {
+        this.sessionToken = "";
+    }
 
     saveLocal(playerData: PlayerData): void {
         try {
@@ -77,6 +90,9 @@ class StorageManager {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
+            if (response && response.ok && response.sessionToken) {
+                this.setSessionToken(response.sessionToken);
+            }
             return response as AuthLoginResponse;
         } catch (error) {
             console.warn("[StorageManager] loginRemote failed", error);
@@ -88,7 +104,7 @@ class StorageManager {
         try {
             const response = await this.request(`/player/${playerData.playerId}`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: this.withAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify(playerData),
             });
             return Boolean(response?.ok);
@@ -100,7 +116,10 @@ class StorageManager {
 
     async loadRemote(playerId: string): Promise<PlayerData | null> {
         try {
-            const response = await this.request(`/player/${playerId}`, { method: "GET" });
+            const response = await this.request(`/player/${playerId}`, {
+                method: "GET",
+                headers: this.withAuthHeaders(),
+            });
             return response as PlayerData;
         } catch (error) {
             console.warn("[StorageManager] loadRemote failed", error);
@@ -121,7 +140,7 @@ class StorageManager {
         try {
             const response = await this.request("/ad/reward", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: this.withAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify(payload),
             });
             return Boolean(response?.ok);
@@ -129,6 +148,16 @@ class StorageManager {
             console.warn("[StorageManager] claimAdReward failed", error);
             return false;
         }
+    }
+
+    private withAuthHeaders(headers: Record<string, string> = {}): Record<string, string> {
+        if (!this.sessionToken) {
+            return headers;
+        }
+        return {
+            ...headers,
+            Authorization: `Bearer ${this.sessionToken}`,
+        };
     }
 
     private async request(path: string, options: PlatformRequestOptions): Promise<any> {
