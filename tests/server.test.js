@@ -333,6 +333,13 @@ test('parseWechatExchangeResponse rejects provider error field even with openid'
   );
 });
 
+test('parseDouyinExchangeResponse rejects provider errcode field even with openid', () => {
+  assert.throws(
+    () => server.parseDouyinExchangeResponse({ openid: 'dy-openid', errcode: 40029 }),
+    /platform auth exchange failed/
+  );
+});
+
 test('exchangePlatformCode rejects missing openid rejected fetch and invalid json', async () => {
   const config = server.resolvePlatformAuthConfig({
     DOUYIN_APP_ID: 'dy-app',

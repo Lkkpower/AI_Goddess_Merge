@@ -203,7 +203,7 @@ function parseDouyinExchangeResponse(data) {
   const body = data && typeof data === "object" && data.data && typeof data.data === "object"
     ? data.data
     : data;
-  if (!body || typeof body !== "object" || body.err_code || body.error || !body.openid) {
+  if (!body || typeof body !== "object" || body.err_code || body.errcode || body.error || !body.openid) {
     throw new Error("platform auth exchange failed");
   }
   return {
