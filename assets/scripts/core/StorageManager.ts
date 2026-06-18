@@ -57,13 +57,18 @@ class StorageManager {
 
     loadLocal(playerId: string): PlayerData | null {
         try {
-            const raw = sys.localStorage.getItem(this.getLocalSaveKey(playerId))
-                || sys.localStorage.getItem(LEGACY_LOCAL_SAVE_KEY);
-            if (!raw) {
+            const scopedRaw = sys.localStorage.getItem(this.getLocalSaveKey(playerId));
+            if (scopedRaw) {
+                return JSON.parse(scopedRaw) as PlayerData;
+            }
+
+            const legacyRaw = sys.localStorage.getItem(LEGACY_LOCAL_SAVE_KEY);
+            if (!legacyRaw) {
                 return null;
             }
-            const data = JSON.parse(raw) as PlayerData;
+            const data = JSON.parse(legacyRaw) as PlayerData;
             data.playerId = playerId;
+            sys.localStorage.setItem(this.getLocalSaveKey(playerId), JSON.stringify(data));
             return data;
         } catch (error) {
             console.warn("[StorageManager] loadLocal failed", error);

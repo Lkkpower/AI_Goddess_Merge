@@ -500,3 +500,15 @@ test('stage 3C storage manager attaches auth headers only to player-owned reques
   assert.match(storage, /this\.request\("\/leaderboard", \{ method: "GET" \}/);
 });
 
+test('stage 3C storage manager saves normalized legacy local data under player key', () => {
+  const storage = read('assets/scripts/core/StorageManager.ts');
+
+  assert.match(storage, /const scopedRaw = sys\.localStorage\.getItem\(this\.getLocalSaveKey\(playerId\)\)/);
+  assert.match(storage, /if \(scopedRaw\) \{/);
+  assert.match(storage, /const legacyRaw = sys\.localStorage\.getItem\(LEGACY_LOCAL_SAVE_KEY\)/);
+  assert.match(storage, /const data = JSON\.parse\(legacyRaw\) as PlayerData/);
+  assert.match(storage, /data\.playerId = playerId/);
+  assert.match(storage, /sys\.localStorage\.setItem\(this\.getLocalSaveKey\(playerId\), JSON\.stringify\(data\)\)/);
+  assert.doesNotMatch(storage, /removeItem\(LEGACY_LOCAL_SAVE_KEY\)/);
+});
+
