@@ -11,6 +11,9 @@ const DATA_FILE = path.join(DATA_DIR, "playerData.json");
 const ALLOWED_REWARD_TYPES = ["clear_low_items", "coin_bonus", "high_level_item"];
 const ALLOWED_AUTH_PLATFORMS = ["wechat", "douyin", "web"];
 const AD_REWARD_COOLDOWN_MS = 30 * 1000;
+const DEFAULT_AUTH_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const DEFAULT_WECHAT_CODE_EXCHANGE_URL = "https://api.weixin.qq.com/sns/jscode2session";
+const DEFAULT_DOUYIN_CODE_EXCHANGE_URL = "https://developer.toutiao.com/api/apps/v2/jscode2session";
 const sessions = new Map();
 
 function ensureDataFile() {
@@ -119,14 +122,54 @@ function resolveMockPlatformOpenId(platform, code) {
   return `${platform}_mock_${code}`;
 }
 
-function createAuthSession(payload) {
-  const platform = normalizeRequiredString(payload && payload.platform, "platform");
-  const code = normalizeRequiredString(payload && payload.code, "code");
+function getSessionTtlMs(env = process.env) {
+  const raw = Number(env.AUTH_SESSION_TTL_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_AUTH_SESSION_TTL_MS;
+}
+
+function normalizeOptionalString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function resolvePlatformAuthConfig(env = process.env) {
+  return {
+    wechat: {
+      appId: normalizeOptionalString(env.WECHAT_APP_ID),
+      appSecret: normalizeOptionalString(env.WECHAT_APP_SECRET),
+      exchangeUrl: normalizeOptionalString(env.WECHAT_CODE_EXCHANGE_URL) || DEFAULT_WECHAT_CODE_EXCHANGE_URL,
+    },
+    douyin: {
+      appId: normalizeOptionalString(env.DOUYIN_APP_ID),
+      appSecret: normalizeOptionalString(env.DOUYIN_APP_SECRET),
+      exchangeUrl: normalizeOptionalString(env.DOUYIN_CODE_EXCHANGE_URL) || DEFAULT_DOUYIN_CODE_EXCHANGE_URL,
+    },
+    sessionTtlMs: getSessionTtlMs(env),
+  };
+}
+
+function hasCompletePlatformAuthConfig(config, platform) {
+  const platformConfig = config && config[platform];
+  return Boolean(
+    platformConfig
+    && platformConfig.appId
+    && platformConfig.appSecret
+    && platformConfig.exchangeUrl
+  );
+}
+
+function createMockPlatformIdentity(platform, code) {
+  return {
+    platform,
+    openid: resolveMockPlatformOpenId(platform, code),
+  };
+}
+
+function createAuthSessionFromIdentity(identity) {
+  const platform = normalizeRequiredString(identity && identity.platform, "platform");
+  const openid = normalizeRequiredString(identity && identity.openid, "openid");
   if (!ALLOWED_AUTH_PLATFORMS.includes(platform)) {
     throw new Error("platform is not supported");
   }
-
-  const openid = resolveMockPlatformOpenId(platform, code);
   const playerId = `${platform}_${openid}`;
   return {
     ok: true,
@@ -135,6 +178,27 @@ function createAuthSession(payload) {
     playerId,
     sessionToken: `mock_session_${playerId}`,
   };
+}
+
+async function exchangePlatformCode(payload, config = resolvePlatformAuthConfig(), fetchImpl = globalThis.fetch) {
+  const platform = normalizeRequiredString(payload && payload.platform, "platform");
+  const code = normalizeRequiredString(payload && payload.code, "code");
+  if (!ALLOWED_AUTH_PLATFORMS.includes(platform)) {
+    throw new Error("platform is not supported");
+  }
+  if (platform === "web" || !hasCompletePlatformAuthConfig(config, platform)) {
+    return createMockPlatformIdentity(platform, code);
+  }
+  throw new Error("platform auth exchange failed");
+}
+
+function createAuthSession(payload) {
+  const platform = normalizeRequiredString(payload && payload.platform, "platform");
+  const code = normalizeRequiredString(payload && payload.code, "code");
+  if (!ALLOWED_AUTH_PLATFORMS.includes(platform)) {
+    throw new Error("platform is not supported");
+  }
+  return createAuthSessionFromIdentity(createMockPlatformIdentity(platform, code));
 }
 
 function registerAuthSession(session, now = Date.now()) {
@@ -451,8 +515,18 @@ module.exports = {
   ALLOWED_REWARD_TYPES,
   ALLOWED_AUTH_PLATFORMS,
   AD_REWARD_COOLDOWN_MS,
+  DEFAULT_AUTH_SESSION_TTL_MS,
+  DEFAULT_WECHAT_CODE_EXCHANGE_URL,
+  DEFAULT_DOUYIN_CODE_EXCHANGE_URL,
   normalizeRequiredString,
   resolveMockPlatformOpenId,
+  getSessionTtlMs,
+  normalizeOptionalString,
+  resolvePlatformAuthConfig,
+  hasCompletePlatformAuthConfig,
+  createMockPlatformIdentity,
+  exchangePlatformCode,
+  createAuthSessionFromIdentity,
   createAuthSession,
   sessions,
   registerAuthSession,

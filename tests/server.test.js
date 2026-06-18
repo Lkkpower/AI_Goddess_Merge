@@ -183,6 +183,80 @@ test('resolveMockPlatformOpenId maps supported platforms deterministically', () 
   assert.throws(() => server.resolveMockPlatformOpenId('ios', 'abc123'), /platform is not supported/);
 });
 
+test('resolvePlatformAuthConfig reads platform credentials and session ttl', () => {
+  const config = server.resolvePlatformAuthConfig({
+    WECHAT_APP_ID: 'wx-app',
+    WECHAT_APP_SECRET: 'wx-secret',
+    WECHAT_CODE_EXCHANGE_URL: 'https://wechat.example/code',
+    DOUYIN_APP_ID: 'dy-app',
+    DOUYIN_APP_SECRET: 'dy-secret',
+    DOUYIN_CODE_EXCHANGE_URL: 'https://douyin.example/code',
+    AUTH_SESSION_TTL_MS: '60000',
+  });
+
+  assert.equal(config.wechat.appId, 'wx-app');
+  assert.equal(config.wechat.appSecret, 'wx-secret');
+  assert.equal(config.wechat.exchangeUrl, 'https://wechat.example/code');
+  assert.equal(config.douyin.appId, 'dy-app');
+  assert.equal(config.douyin.appSecret, 'dy-secret');
+  assert.equal(config.douyin.exchangeUrl, 'https://douyin.example/code');
+  assert.equal(config.sessionTtlMs, 60000);
+});
+
+test('getSessionTtlMs falls back for invalid values', () => {
+  assert.equal(server.getSessionTtlMs({ AUTH_SESSION_TTL_MS: '120000' }), 120000);
+  assert.equal(server.getSessionTtlMs({ AUTH_SESSION_TTL_MS: '0' }), server.DEFAULT_AUTH_SESSION_TTL_MS);
+  assert.equal(server.getSessionTtlMs({ AUTH_SESSION_TTL_MS: '-5' }), server.DEFAULT_AUTH_SESSION_TTL_MS);
+  assert.equal(server.getSessionTtlMs({ AUTH_SESSION_TTL_MS: 'abc' }), server.DEFAULT_AUTH_SESSION_TTL_MS);
+  assert.equal(server.getSessionTtlMs({}), server.DEFAULT_AUTH_SESSION_TTL_MS);
+});
+
+test('hasCompletePlatformAuthConfig requires app id secret and exchange url', () => {
+  const config = server.resolvePlatformAuthConfig({
+    WECHAT_APP_ID: 'wx-app',
+    WECHAT_APP_SECRET: 'wx-secret',
+    WECHAT_CODE_EXCHANGE_URL: 'https://wechat.example/code',
+  });
+
+  assert.equal(server.hasCompletePlatformAuthConfig(config, 'wechat'), true);
+  assert.equal(server.hasCompletePlatformAuthConfig(config, 'douyin'), false);
+  assert.equal(server.hasCompletePlatformAuthConfig(config, 'web'), false);
+});
+
+test('exchangePlatformCode returns deterministic mock identity for web and incomplete platform config', async () => {
+  const config = server.resolvePlatformAuthConfig({});
+
+  assert.deepEqual(
+    await server.exchangePlatformCode({ platform: 'web', code: 'demo_player' }, config),
+    { platform: 'web', openid: 'web_mock_demo_player' }
+  );
+
+  assert.deepEqual(
+    await server.exchangePlatformCode({ platform: 'wechat', code: 'login-code' }, config),
+    { platform: 'wechat', openid: 'wechat_mock_login-code' }
+  );
+
+  assert.deepEqual(
+    await server.exchangePlatformCode({ platform: 'douyin', code: 'login-code' }, config),
+    { platform: 'douyin', openid: 'douyin_mock_login-code' }
+  );
+});
+
+test('createAuthSessionFromIdentity returns stable player identity and token', () => {
+  const session = server.createAuthSessionFromIdentity({
+    platform: 'wechat',
+    openid: 'real-openid',
+  });
+
+  assert.deepEqual(session, {
+    ok: true,
+    platform: 'wechat',
+    openid: 'real-openid',
+    playerId: 'wechat_real-openid',
+    sessionToken: 'mock_session_wechat_real-openid',
+  });
+});
+
 test('createAuthSession returns deterministic player identity and token', () => {
   const session = server.createAuthSession({
     platform: 'wechat',
