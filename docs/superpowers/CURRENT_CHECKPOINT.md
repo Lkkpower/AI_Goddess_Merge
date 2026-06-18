@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-C completed**.
+Current development node: **Stage 3-D in progress**.
 
 Completed capabilities:
 
@@ -54,6 +54,22 @@ Completed capabilities:
 - Player reads validate bearer tokens when supplied while preserving public preview fallback without a token.
 - Client stores the latest `sessionToken` and attaches it to player save, player load, and ad reward validation requests.
 - Legacy local saves are normalized and written to the authenticated player-scoped key without a backend migration endpoint.
+- Server has a platform auth config boundary for WeChat, Douyin, and web login flows.
+- Server can exchange configured WeChat and Douyin login codes through injected provider requests while preserving deterministic mock fallback for incomplete local config.
+- Auth sessions now include `expiresAt`, and expired bearer sessions are rejected by the shared player-owned request guard.
+
+## Recent Stage 3-D Progress
+
+Completed so far:
+
+1. Stage 3-D platform code exchange design and implementation plan are committed.
+2. `server.js` now exposes platform auth config helpers and deterministic normalized mock identity helpers.
+3. `server.js` now supports injected WeChat and Douyin provider code exchange when credentials and exchange URLs are configured.
+4. Provider failure responses, missing `openid`, rejected fetches, and invalid JSON now fail closed with `platform auth exchange failed`.
+5. WeChat `error` responses and Douyin `errcode` responses are covered by regression tests.
+6. Auth session records now include `expiresAt`.
+7. Expired bearer sessions return `401` with `{ ok: false, error: "session expired" }`.
+8. Stage 3-D Tasks 1 through 3 are committed, verified, and reviewed.
 
 ## Recent Stage 3-C Progress
 
@@ -83,9 +99,9 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-D planning pending**.
+Current development node for next session: **Stage 3-D Task 4 pending**.
 
-Recommended next node: real platform code exchange design, persistent session/token expiry design, or server-authoritative board mutation design after session ownership has been verified in preview.
+Recommended next node: ask before starting Task 4, then integrate the async platform exchange boundary into `/auth/login`.
 
 ## Key Files
 
@@ -140,7 +156,7 @@ Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 62 pass, 0 fail
+# 76 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
 # 37 pass, 0 fail
@@ -159,13 +175,15 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-D planning**.
+Recommended next node: **Stage 3-D Task 4**.
 
 Suggested scope:
 
-- Decide whether to integrate real WeChat/Douyin code exchange and secret handling.
-- Decide whether sessions need persistence and expiration.
-- Consider server-authoritative board mutation after authenticated request ownership is stable.
+- Ask before starting Task 4, per user instruction.
+- Make `loginPlatformPlayer()` and `handleAuthLogin()` async.
+- Route `/auth/login` through the platform exchange boundary.
+- Return `expiresAt` in successful auth responses.
+- Keep configured provider exchange failures closed with `502`.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
 
