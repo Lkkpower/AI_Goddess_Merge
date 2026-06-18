@@ -437,11 +437,11 @@ function createMockContext(body, headers = {}) {
   };
 }
 
-test('registerAuthSession stores session records by token', () => {
+test('registerAuthSession stores session records by token with expiry', () => {
   server.sessions.clear();
   const session = server.createAuthSession({ platform: 'wechat', code: 'session-code' });
 
-  const record = server.registerAuthSession(session, 1781450000000);
+  const record = server.registerAuthSession(session, 1781450000000, 60000);
 
   assert.deepEqual(record, {
     sessionToken: 'mock_session_wechat_wechat_mock_session-code',
@@ -449,6 +449,7 @@ test('registerAuthSession stores session records by token', () => {
     platform: 'wechat',
     openid: 'wechat_mock_session-code',
     createdAt: 1781450000000,
+    expiresAt: 1781450060000,
   });
   assert.deepEqual(server.sessions.get(session.sessionToken), record);
 });
@@ -467,9 +468,48 @@ test('getSessionFromAuthorization returns stored sessions or null', () => {
   const session = server.createAuthSession({ platform: 'web', code: 'demo_player' });
   const record = server.registerAuthSession(session, 1781450000000);
 
-  assert.deepEqual(server.getSessionFromAuthorization(`Bearer ${session.sessionToken}`), record);
+  assert.deepEqual(server.getSessionFromAuthorization(`Bearer ${session.sessionToken}`, 1781450000000), record);
   assert.equal(server.getSessionFromAuthorization('Bearer missing'), null);
   assert.equal(server.getSessionFromAuthorization(''), null);
+});
+
+test('isSessionExpired covers active boundary and expired sessions', () => {
+  const session = {
+    sessionToken: 'token',
+    playerId: 'player',
+    platform: 'web',
+    openid: 'web_mock_player',
+    createdAt: 1000,
+    expiresAt: 2000,
+  };
+
+  assert.equal(server.isSessionExpired(session, 1999), false);
+  assert.equal(server.isSessionExpired(session, 2000), true);
+  assert.equal(server.isSessionExpired(session, 2001), true);
+  assert.equal(server.isSessionExpired({ ...session, expiresAt: undefined }, 2001), false);
+});
+
+test('getSessionFromAuthorization returns null for expired sessions', () => {
+  server.sessions.clear();
+  const session = server.createAuthSession({ platform: 'web', code: 'demo_player' });
+  server.registerAuthSession(session, 1781450000000, 1000);
+
+  assert.equal(
+    server.getSessionFromAuthorization(`Bearer ${session.sessionToken}`, 1781450000500).playerId,
+    session.playerId
+  );
+  assert.equal(server.getSessionFromAuthorization(`Bearer ${session.sessionToken}`, 1781450001000), null);
+});
+
+test('requirePlayerSession writes a distinct error for expired sessions', () => {
+  server.sessions.clear();
+  const session = server.createAuthSession({ platform: 'douyin', code: 'expired-owner' });
+  server.registerAuthSession(session, 1781450000000, 1000);
+
+  const ctx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
+  assert.equal(server.requirePlayerSession(ctx, session.playerId, 1781450001000), null);
+  assert.equal(ctx.status, 401);
+  assert.deepEqual(ctx.body, { ok: false, error: 'session expired' });
 });
 
 test('requirePlayerSession returns session or writes auth errors', () => {
@@ -478,17 +518,17 @@ test('requirePlayerSession returns session or writes auth errors', () => {
   server.registerAuthSession(session, 1781450000000);
 
   const okCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
-  const okSession = server.requirePlayerSession(okCtx, session.playerId);
+  const okSession = server.requirePlayerSession(okCtx, session.playerId, 1781450000000);
   assert.equal(okSession.playerId, session.playerId);
   assert.equal(okCtx.status, 200);
 
   const missingCtx = createMockContext({}, {});
-  assert.equal(server.requirePlayerSession(missingCtx, session.playerId), null);
+  assert.equal(server.requirePlayerSession(missingCtx, session.playerId, 1781450000000), null);
   assert.equal(missingCtx.status, 401);
   assert.deepEqual(missingCtx.body, { ok: false, error: 'session is required' });
 
   const mismatchCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
-  assert.equal(server.requirePlayerSession(mismatchCtx, 'wechat_other'), null);
+  assert.equal(server.requirePlayerSession(mismatchCtx, 'wechat_other', 1781450000000), null);
   assert.equal(mismatchCtx.status, 403);
   assert.deepEqual(mismatchCtx.body, { ok: false, error: 'session player mismatch' });
 });

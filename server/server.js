@@ -275,16 +275,21 @@ function createAuthSession(payload) {
   return createAuthSessionFromIdentity(createMockPlatformIdentity(platform, code));
 }
 
-function registerAuthSession(session, now = Date.now()) {
+function registerAuthSession(session, now = Date.now(), ttlMs = DEFAULT_AUTH_SESSION_TTL_MS) {
   const record = {
     sessionToken: session.sessionToken,
     playerId: session.playerId,
     platform: session.platform,
     openid: session.openid,
     createdAt: now,
+    expiresAt: now + ttlMs,
   };
   sessions.set(session.sessionToken, record);
   return record;
+}
+
+function isSessionExpired(session, now = Date.now()) {
+  return Boolean(session && Number.isFinite(Number(session.expiresAt)) && now >= Number(session.expiresAt));
 }
 
 function parseBearerToken(headerValue) {
@@ -304,16 +309,35 @@ function getAuthorizationHeader(ctx) {
     : "";
 }
 
-function getSessionFromAuthorization(headerValue) {
+function getSessionFromAuthorization(headerValue, now = Date.now()) {
   const token = parseBearerToken(headerValue);
-  return token ? sessions.get(token) || null : null;
+  if (!token) {
+    return null;
+  }
+  const session = sessions.get(token) || null;
+  if (!session || isSessionExpired(session, now)) {
+    return null;
+  }
+  return session;
 }
 
-function requirePlayerSession(ctx, expectedPlayerId) {
-  const session = getSessionFromAuthorization(getAuthorizationHeader(ctx));
+function requirePlayerSession(ctx, expectedPlayerId, now = Date.now()) {
+  const token = parseBearerToken(getAuthorizationHeader(ctx));
+  if (!token) {
+    ctx.status = 401;
+    ctx.body = { ok: false, error: "session is required" };
+    return null;
+  }
+
+  const session = sessions.get(token) || null;
   if (!session) {
     ctx.status = 401;
     ctx.body = { ok: false, error: "session is required" };
+    return null;
+  }
+  if (isSessionExpired(session, now)) {
+    ctx.status = 401;
+    ctx.body = { ok: false, error: "session expired" };
     return null;
   }
   if (session.playerId !== expectedPlayerId) {
@@ -346,7 +370,7 @@ function handleAuthLogin(ctx, store, now = Date.now()) {
   }
 }
 
-function handlePlayerLoad(ctx, store) {
+function handlePlayerLoad(ctx, store, now = Date.now()) {
   const { playerId } = ctx.params;
   if (!playerId) {
     sendBadRequest(ctx, "playerId is required");
@@ -355,7 +379,7 @@ function handlePlayerLoad(ctx, store) {
 
   const authorization = getAuthorizationHeader(ctx);
   if (authorization) {
-    const session = requirePlayerSession(ctx, playerId);
+    const session = requirePlayerSession(ctx, playerId, now);
     if (!session) {
       return;
     }
@@ -370,7 +394,7 @@ function handlePlayerSave(ctx, store, now = Date.now()) {
     sendBadRequest(ctx, "playerId is required");
     return;
   }
-  const session = requirePlayerSession(ctx, playerId);
+  const session = requirePlayerSession(ctx, playerId, now);
   if (!session) {
     return;
   }
@@ -410,7 +434,7 @@ function handleAdRewardClaim(ctx, store, now = Date.now()) {
     sendBadRequest(ctx, "playerId is required");
     return;
   }
-  const session = requirePlayerSession(ctx, playerId);
+  const session = requirePlayerSession(ctx, playerId, now);
   if (!session) {
     return;
   }
@@ -608,6 +632,7 @@ module.exports = {
   createAuthSession,
   sessions,
   registerAuthSession,
+  isSessionExpired,
   parseBearerToken,
   getAuthorizationHeader,
   getSessionFromAuthorization,
