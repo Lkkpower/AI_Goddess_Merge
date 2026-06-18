@@ -242,6 +242,133 @@ test('exchangePlatformCode returns deterministic mock identity for web and incom
   );
 });
 
+function createJsonResponse(data, ok = true, status = 200) {
+  return {
+    ok,
+    status,
+    async json() {
+      return data;
+    },
+  };
+}
+
+test('exchangePlatformCode calls WeChat exchange when config is complete', async () => {
+  const requests = [];
+  const config = server.resolvePlatformAuthConfig({
+    WECHAT_APP_ID: 'wx-app',
+    WECHAT_APP_SECRET: 'wx-secret',
+    WECHAT_CODE_EXCHANGE_URL: 'https://wechat.example/code',
+  });
+  const identity = await server.exchangePlatformCode(
+    { platform: 'wechat', code: 'wx-code' },
+    config,
+    async (url) => {
+      requests.push(url);
+      return createJsonResponse({ openid: 'wx-openid', unionid: 'wx-union' });
+    }
+  );
+
+  assert.deepEqual(identity, {
+    platform: 'wechat',
+    openid: 'wx-openid',
+    unionid: 'wx-union',
+  });
+  assert.equal(requests.length, 1);
+  assert.match(requests[0], /^https:\/\/wechat\.example\/code\?/);
+  assert.match(requests[0], /appid=wx-app/);
+  assert.match(requests[0], /secret=wx-secret/);
+  assert.match(requests[0], /js_code=wx-code/);
+  assert.match(requests[0], /grant_type=authorization_code/);
+});
+
+test('exchangePlatformCode calls Douyin exchange when config is complete', async () => {
+  const requests = [];
+  const config = server.resolvePlatformAuthConfig({
+    DOUYIN_APP_ID: 'dy-app',
+    DOUYIN_APP_SECRET: 'dy-secret',
+    DOUYIN_CODE_EXCHANGE_URL: 'https://douyin.example/code',
+  });
+  const identity = await server.exchangePlatformCode(
+    { platform: 'douyin', code: 'dy-code' },
+    config,
+    async (url) => {
+      requests.push(url);
+      return createJsonResponse({ data: { openid: 'dy-openid', unionid: 'dy-union' } });
+    }
+  );
+
+  assert.deepEqual(identity, {
+    platform: 'douyin',
+    openid: 'dy-openid',
+    unionid: 'dy-union',
+  });
+  assert.equal(requests.length, 1);
+  assert.match(requests[0], /^https:\/\/douyin\.example\/code\?/);
+  assert.match(requests[0], /appid=dy-app/);
+  assert.match(requests[0], /secret=dy-secret/);
+  assert.match(requests[0], /code=dy-code/);
+});
+
+test('exchangePlatformCode rejects provider failure responses', async () => {
+  const config = server.resolvePlatformAuthConfig({
+    WECHAT_APP_ID: 'wx-app',
+    WECHAT_APP_SECRET: 'wx-secret',
+    WECHAT_CODE_EXCHANGE_URL: 'https://wechat.example/code',
+  });
+
+  await assert.rejects(
+    () => server.exchangePlatformCode(
+      { platform: 'wechat', code: 'bad-code' },
+      config,
+      async () => createJsonResponse({ errcode: 40029, errmsg: 'invalid code' })
+    ),
+    /platform auth exchange failed/
+  );
+});
+
+test('exchangePlatformCode rejects missing openid rejected fetch and invalid json', async () => {
+  const config = server.resolvePlatformAuthConfig({
+    DOUYIN_APP_ID: 'dy-app',
+    DOUYIN_APP_SECRET: 'dy-secret',
+    DOUYIN_CODE_EXCHANGE_URL: 'https://douyin.example/code',
+  });
+
+  await assert.rejects(
+    () => server.exchangePlatformCode(
+      { platform: 'douyin', code: 'missing-openid' },
+      config,
+      async () => createJsonResponse({ data: {} })
+    ),
+    /platform auth exchange failed/
+  );
+
+  await assert.rejects(
+    () => server.exchangePlatformCode(
+      { platform: 'douyin', code: 'network-fail' },
+      config,
+      async () => {
+        throw new Error('network failed');
+      }
+    ),
+    /platform auth exchange failed/
+  );
+
+  await assert.rejects(
+    () => server.exchangePlatformCode(
+      { platform: 'douyin', code: 'bad-json' },
+      config,
+      async () => ({
+        ok: true,
+        status: 200,
+        async json() {
+          throw new Error('bad json');
+        },
+      })
+    ),
+    /platform auth exchange failed/
+  );
+});
+
 test('createAuthSessionFromIdentity returns stable player identity and token', () => {
   const session = server.createAuthSessionFromIdentity({
     platform: 'wechat',

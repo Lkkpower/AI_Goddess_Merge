@@ -180,6 +180,59 @@ function createAuthSessionFromIdentity(identity) {
   };
 }
 
+function buildUrlWithQuery(baseUrl, params) {
+  const url = new URL(baseUrl);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  return url.toString();
+}
+
+function parseWechatExchangeResponse(data) {
+  if (!data || typeof data !== "object" || data.errcode || !data.openid) {
+    throw new Error("platform auth exchange failed");
+  }
+  return {
+    platform: "wechat",
+    openid: String(data.openid),
+    ...(data.unionid ? { unionid: String(data.unionid) } : {}),
+  };
+}
+
+function parseDouyinExchangeResponse(data) {
+  const body = data && typeof data === "object" && data.data && typeof data.data === "object"
+    ? data.data
+    : data;
+  if (!body || typeof body !== "object" || body.err_code || body.error || !body.openid) {
+    throw new Error("platform auth exchange failed");
+  }
+  return {
+    platform: "douyin",
+    openid: String(body.openid),
+    ...(body.unionid ? { unionid: String(body.unionid) } : {}),
+  };
+}
+
+async function fetchJson(url, fetchImpl) {
+  if (typeof fetchImpl !== "function") {
+    throw new Error("platform auth exchange failed");
+  }
+  let response;
+  try {
+    response = await fetchImpl(url);
+  } catch (error) {
+    throw new Error("platform auth exchange failed");
+  }
+  if (!response || response.ok === false) {
+    throw new Error("platform auth exchange failed");
+  }
+  try {
+    return await response.json();
+  } catch (error) {
+    throw new Error("platform auth exchange failed");
+  }
+}
+
 async function exchangePlatformCode(payload, config = resolvePlatformAuthConfig(), fetchImpl = globalThis.fetch) {
   const platform = normalizeRequiredString(payload && payload.platform, "platform");
   const code = normalizeRequiredString(payload && payload.code, "code");
@@ -189,7 +242,28 @@ async function exchangePlatformCode(payload, config = resolvePlatformAuthConfig(
   if (platform === "web" || !hasCompletePlatformAuthConfig(config, platform)) {
     return createMockPlatformIdentity(platform, code);
   }
-  throw new Error("platform auth exchange failed");
+
+  const platformConfig = config[platform];
+  if (platform === "wechat") {
+    const url = buildUrlWithQuery(platformConfig.exchangeUrl, {
+      appid: platformConfig.appId,
+      secret: platformConfig.appSecret,
+      js_code: code,
+      grant_type: "authorization_code",
+    });
+    return parseWechatExchangeResponse(await fetchJson(url, fetchImpl));
+  }
+
+  if (platform === "douyin") {
+    const url = buildUrlWithQuery(platformConfig.exchangeUrl, {
+      appid: platformConfig.appId,
+      secret: platformConfig.appSecret,
+      code,
+    });
+    return parseDouyinExchangeResponse(await fetchJson(url, fetchImpl));
+  }
+
+  throw new Error("platform is not supported");
 }
 
 function createAuthSession(payload) {
@@ -525,6 +599,10 @@ module.exports = {
   resolvePlatformAuthConfig,
   hasCompletePlatformAuthConfig,
   createMockPlatformIdentity,
+  buildUrlWithQuery,
+  parseWechatExchangeResponse,
+  parseDouyinExchangeResponse,
+  fetchJson,
   exchangePlatformCode,
   createAuthSessionFromIdentity,
   createAuthSession,
