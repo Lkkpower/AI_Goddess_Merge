@@ -1,4 +1,4 @@
-# Current Checkpoint - 2026-06-16
+# Current Checkpoint - 2026-06-18
 
 ## Project
 
@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-C in progress**.
+Current development node: **Stage 3-C completed**.
 
 Completed capabilities:
 
@@ -49,6 +49,11 @@ Completed capabilities:
 - Game initialization selects an authenticated `playerId` when auth succeeds and keeps local play available when auth fails.
 - Local saves are scoped by selected `playerId` with legacy fallback normalization.
 - Server session helpers are in place and player-owned writes now require matching bearer sessions.
+- Server stores issued mock session tokens in memory after `/auth/login`.
+- Player saves and ad reward claims require a matching bearer session token.
+- Player reads validate bearer tokens when supplied while preserving public preview fallback without a token.
+- Client stores the latest `sessionToken` and attaches it to player save, player load, and ad reward validation requests.
+- Legacy local saves are normalized and written to the authenticated player-scoped key without a backend migration endpoint.
 
 ## Recent Stage 3-C Progress
 
@@ -58,7 +63,10 @@ Completed so far:
 2. `server.js` now rejects player save and ad reward write requests when the bearer session is missing or points at another player.
 3. `tests/server.test.js` covers the new session helpers and write authorization behavior.
 4. `server.js` routes `/player/:playerId` and `/ad/reward` through helper functions that enforce ownership.
-5. Stage 3-C Task 1 and Task 2 are committed and verified.
+5. `StorageManager.ts` stores the latest session token and attaches it to player save, player load, and ad reward validation requests.
+6. `StorageManager.ts` explicitly migrates legacy local saves by normalizing the `playerId` and writing the data under the player-scoped key.
+7. `tests/client-scaffold.test.js` covers token propagation and legacy local migration guardrails.
+8. Stage 3-C Tasks 1 through 4 are committed and verified.
 
 ## Recent Stage 3-A Changes
 
@@ -75,9 +83,9 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-C Task 3 pending**.
+Current development node for next session: **Stage 3-D planning pending**.
 
-Recommended next node: client session token propagation in `StorageManager`, then explicit legacy local migration, then checkpoint update.
+Recommended next node: real platform code exchange design, persistent session/token expiry design, or server-authoritative board mutation design after session ownership has been verified in preview.
 
 ## Key Files
 
@@ -132,10 +140,10 @@ Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 40 pass, 0 fail
+# 62 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
-# 33 pass, 0 fail
+# 37 pass, 0 fail
 
 npx.cmd --yes --package typescript@5.4.5 tsc --noEmit 2>&1 | Select-String -Pattern 'assets/scripts'
 # no assets/scripts output
@@ -151,13 +159,13 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-C implementation continuation**.
+Recommended next node: **Stage 3-D planning**.
 
 Suggested scope:
 
-- Propagate session tokens from `loginRemote()` into player-owned requests.
-- Make legacy local-save migration explicit and testable.
-- Finish Stage 3-C checkpoint and verification after client token propagation is in place.
+- Decide whether to integrate real WeChat/Douyin code exchange and secret handling.
+- Decide whether sessions need persistence and expiration.
+- Consider server-authoritative board mutation after authenticated request ownership is stable.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
 
