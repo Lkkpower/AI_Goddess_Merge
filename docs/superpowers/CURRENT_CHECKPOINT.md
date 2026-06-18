@@ -70,6 +70,7 @@ Completed so far:
 6. Auth session records now include `expiresAt`.
 7. Expired bearer sessions return `401` with `{ ok: false, error: "session expired" }`.
 8. Stage 3-D Tasks 1 through 3 are committed, verified, and reviewed.
+9. Work is paused before Task 4 per user request.
 
 ## Recent Stage 3-C Progress
 
@@ -101,7 +102,10 @@ Latest development changes completed:
 
 Current development node for next session: **Stage 3-D Task 4 pending**.
 
-Recommended next node: ask before starting Task 4, then integrate the async platform exchange boundary into `/auth/login`.
+Recommended next node:
+
+- Ask before starting Task 4, then integrate the async platform exchange boundary into `/auth/login`.
+- After Task 4, continue with client contract guardrails and the Stage 3-D checkpoint update.
 
 ## Key Files
 
@@ -184,6 +188,7 @@ Suggested scope:
 - Route `/auth/login` through the platform exchange boundary.
 - Return `expiresAt` in successful auth responses.
 - Keep configured provider exchange failures closed with `502`.
+- After Task 4, add client `expiresAt` guardrails, then update the checkpoint with final Stage 3-D verification.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
 
