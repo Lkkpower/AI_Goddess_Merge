@@ -189,7 +189,7 @@ function buildUrlWithQuery(baseUrl, params) {
 }
 
 function parseWechatExchangeResponse(data) {
-  if (!data || typeof data !== "object" || data.errcode || !data.openid) {
+  if (!data || typeof data !== "object" || data.errcode || data.error || !data.openid) {
     throw new Error("platform auth exchange failed");
   }
   return {

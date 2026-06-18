@@ -326,6 +326,13 @@ test('exchangePlatformCode rejects provider failure responses', async () => {
   );
 });
 
+test('parseWechatExchangeResponse rejects provider error field even with openid', () => {
+  assert.throws(
+    () => server.parseWechatExchangeResponse({ openid: 'wx-openid', error: 'invalid code' }),
+    /platform auth exchange failed/
+  );
+});
+
 test('exchangePlatformCode rejects missing openid rejected fetch and invalid json', async () => {
   const config = server.resolvePlatformAuthConfig({
     DOUYIN_APP_ID: 'dy-app',
