@@ -512,3 +512,28 @@ test('stage 3C storage manager saves normalized legacy local data under player k
   assert.doesNotMatch(storage, /removeItem\(LEGACY_LOCAL_SAVE_KEY\)/);
 });
 
+test('stage 3D storage manager accepts auth session expiry from server', () => {
+  const storage = read('assets/scripts/core/StorageManager.ts');
+
+  assert.match(storage, /expiresAt: number/);
+  assert.match(storage, /export interface AuthLoginResponse/);
+  assert.match(storage, /sessionToken: string/);
+});
+
+test('stage 3D client does not contain platform app secrets', () => {
+  const files = [
+    'assets/scripts/core/StorageManager.ts',
+    'assets/scripts/core/GameManager.ts',
+    'assets/scripts/platform/PlatformManager.ts',
+    'assets/scripts/platform/WechatAdapter.ts',
+    'assets/scripts/platform/DouyinAdapter.ts',
+  ];
+
+  for (const file of files) {
+    const source = read(file);
+    assert.doesNotMatch(source, /APP_SECRET/);
+    assert.doesNotMatch(source, /WECHAT_APP_SECRET/);
+    assert.doesNotMatch(source, /DOUYIN_APP_SECRET/);
+  }
+});
+

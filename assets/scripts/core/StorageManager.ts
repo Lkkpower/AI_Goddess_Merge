@@ -27,6 +27,7 @@ export interface AuthLoginResponse {
     openid: string;
     playerId: string;
     sessionToken: string;
+    expiresAt: number;
 }
 
 class StorageManager {
