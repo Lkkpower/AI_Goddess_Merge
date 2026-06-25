@@ -1,4 +1,4 @@
-# Current Checkpoint - 2026-06-18
+# Current Checkpoint - 2026-06-25
 
 ## Project
 
@@ -62,6 +62,15 @@ Completed capabilities:
 - Complete platform auth configuration fails closed when provider exchange fails instead of silently minting mock identities.
 - Client auth response typing accepts the server session expiry field without storing platform secrets.
 
+## Recent Stage 3-E Progress
+
+Completed so far:
+
+1. Stage 3-E persistent session store direction is selected.
+2. Stage 3-E persistent session store design is committed.
+3. Stage 3-E implementation plan is written and ready for Task 1.
+4. Work is paused before implementation.
+
 ## Recent Stage 3-D Progress
 
 Completed so far:
@@ -107,11 +116,12 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-E planning pending**.
+Current development node for next session: **Stage 3-E Task 1 pending**.
 
 Recommended next node:
 
-- Persistent session storage, server-authoritative board mutation, account linking/migration, or production platform credential deployment checks after real code exchange has been verified.
+- Begin Stage 3-E Task 1: add JSON session-store file helpers.
+- Follow `docs/superpowers/plans/2026-06-25-stage-3e-persistent-session-store.md` task-by-task with TDD.
 
 ## Key Files
 
@@ -154,6 +164,8 @@ Docs:
 - `README.md`
 - `README_CLIENT.md`
 - `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`
+- `docs/superpowers/specs/2026-06-25-stage-3e-persistent-session-store-design.md`
+- `docs/superpowers/plans/2026-06-25-stage-3e-persistent-session-store.md`
 - `docs/superpowers/plans/2026-06-16-stage-3b-platform-auth-request.md`
 - `docs/superpowers/plans/2026-06-15-stage-3-ad-platform-validation.md`
 - `docs/superpowers/specs/2026-06-12-stage-2b-b-design.md`
@@ -185,13 +197,13 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-E planning**.
+Recommended next node: **Stage 3-E Task 1**.
 
 Suggested scope:
 
-- Decide whether sessions should move from in-memory storage to a persistent store.
-- Decide whether generate, merge, ad reward, and score changes should become server-authoritative.
-- Decide whether account linking or account migration is needed before production launch.
+- Add `server/data/sessionData.json` file helpers.
+- Add tests for session store initialization, read fallback, and stable writes.
+- Commit the first implementation slice before continuing to persisted session loading.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
 
