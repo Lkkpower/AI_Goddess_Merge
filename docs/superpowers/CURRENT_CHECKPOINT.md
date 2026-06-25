@@ -69,7 +69,7 @@ Completed so far:
 1. Stage 3-E persistent session store direction is selected.
 2. Stage 3-E persistent session store design is committed.
 3. Stage 3-E implementation plan is written and ready for Task 1.
-4. Work is paused before implementation.
+4. Work is paused on 2026-06-25 before implementation; next session should start with Stage 3-E Task 1.
 
 ## Recent Stage 3-D Progress
 
