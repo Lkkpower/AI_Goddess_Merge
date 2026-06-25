@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-D in progress**.
+Current development node: **Stage 3-D completed**.
 
 Completed capabilities:
 
@@ -57,6 +57,10 @@ Completed capabilities:
 - Server has a platform auth config boundary for WeChat, Douyin, and web login flows.
 - Server can exchange configured WeChat and Douyin login codes through injected provider requests while preserving deterministic mock fallback for incomplete local config.
 - Auth sessions now include `expiresAt`, and expired bearer sessions are rejected by the shared player-owned request guard.
+- Server auth login now uses a platform auth provider boundary with deterministic mock fallback.
+- WeChat and Douyin login codes can be exchanged through configured server-side credentials and endpoints.
+- Complete platform auth configuration fails closed when provider exchange fails instead of silently minting mock identities.
+- Client auth response typing accepts the server session expiry field without storing platform secrets.
 
 ## Recent Stage 3-D Progress
 
@@ -69,8 +73,11 @@ Completed so far:
 5. WeChat `error` responses and Douyin `errcode` responses are covered by regression tests.
 6. Auth session records now include `expiresAt`.
 7. Expired bearer sessions return `401` with `{ ok: false, error: "session expired" }`.
-8. Stage 3-D Tasks 1 through 3 are committed, verified, and reviewed.
-9. Work is paused before Task 4 per user request.
+8. `/auth/login` now awaits the platform exchange boundary and returns session `expiresAt`.
+9. Configured platform exchange failures return `502` with `{ ok: false, error: "platform auth exchange failed" }`.
+10. `StorageManager.ts` accepts `expiresAt` in the auth response contract.
+11. Client scaffold guardrails verify no platform app secret names are present in client auth code.
+12. Stage 3-D Tasks 1 through 6 are committed and verified.
 
 ## Recent Stage 3-C Progress
 
@@ -100,12 +107,11 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-D Task 4 pending**.
+Current development node for next session: **Stage 3-E planning pending**.
 
 Recommended next node:
 
-- Ask before starting Task 4, then integrate the async platform exchange boundary into `/auth/login`.
-- After Task 4, continue with client contract guardrails and the Stage 3-D checkpoint update.
+- Persistent session storage, server-authoritative board mutation, account linking/migration, or production platform credential deployment checks after real code exchange has been verified.
 
 ## Key Files
 
@@ -160,7 +166,7 @@ Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 76 pass, 0 fail
+# 79 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
 # 37 pass, 0 fail
@@ -179,16 +185,13 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-D Task 4**.
+Recommended next node: **Stage 3-E planning**.
 
 Suggested scope:
 
-- Ask before starting Task 4, per user instruction.
-- Make `loginPlatformPlayer()` and `handleAuthLogin()` async.
-- Route `/auth/login` through the platform exchange boundary.
-- Return `expiresAt` in successful auth responses.
-- Keep configured provider exchange failures closed with `502`.
-- After Task 4, add client `expiresAt` guardrails, then update the checkpoint with final Stage 3-D verification.
+- Decide whether sessions should move from in-memory storage to a persistent store.
+- Decide whether generate, merge, ad reward, and score changes should become server-authoritative.
+- Decide whether account linking or account migration is needed before production launch.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
 
