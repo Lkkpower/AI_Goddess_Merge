@@ -348,8 +348,12 @@ function requirePlayerSession(ctx, expectedPlayerId, now = Date.now()) {
   return session;
 }
 
-function loginPlatformPlayer(store, payload, now = Date.now()) {
-  const session = createAuthSession(payload);
+async function loginPlatformPlayer(store, payload, options = {}) {
+  const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+  const config = options.config || resolvePlatformAuthConfig();
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const identity = await exchangePlatformCode(payload, config, fetchImpl);
+  const session = createAuthSessionFromIdentity(identity);
   const nickname = typeof payload.nickname === "string" ? payload.nickname.trim() : "";
 
   if (!store[session.playerId]) {
@@ -358,14 +362,21 @@ function loginPlatformPlayer(store, payload, now = Date.now()) {
     store[session.playerId] = player;
   }
 
-  registerAuthSession(session, now);
-  return session;
+  const record = registerAuthSession(session, now, config.sessionTtlMs);
+  return {
+    ...session,
+    expiresAt: record.expiresAt,
+  };
 }
 
-function handleAuthLogin(ctx, store, now = Date.now()) {
+async function handleAuthLogin(ctx, store, options = {}) {
   try {
-    ctx.body = loginPlatformPlayer(store, ctx.request.body || {}, now);
+    ctx.body = await loginPlatformPlayer(store, ctx.request.body || {}, options);
   } catch (error) {
+    if (error && error.message === "platform auth exchange failed") {
+      sendAuthExchangeError(ctx);
+      return;
+    }
     sendBadRequest(ctx, error.message);
   }
 }
@@ -524,6 +535,14 @@ function sendBadRequest(ctx, message) {
   };
 }
 
+function sendAuthExchangeError(ctx) {
+  ctx.status = 502;
+  ctx.body = {
+    ok: false,
+    error: "platform auth exchange failed",
+  };
+}
+
 async function errorHandler(ctx, next) {
   try {
     await next();
@@ -554,10 +573,10 @@ function createApp() {
     };
   });
 
-  router.post("/auth/login", (ctx) => {
+  router.post("/auth/login", async (ctx) => {
     const store = readPlayerStore();
-    handleAuthLogin(ctx, store);
-    if (ctx.status !== 400) {
+    await handleAuthLogin(ctx, store);
+    if (ctx.status < 400) {
       writePlayerStore(store);
     }
   });
@@ -645,5 +664,6 @@ module.exports = {
   normalizeAdRewardClientContext,
   claimAdRewardForPlayer,
   sendBadRequest,
+  sendAuthExchangeError,
   errorHandler,
 };

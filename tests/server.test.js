@@ -533,21 +533,26 @@ test('requirePlayerSession returns session or writes auth errors', () => {
   assert.deepEqual(mismatchCtx.body, { ok: false, error: 'session player mismatch' });
 });
 
-test('loginPlatformPlayer registers the returned session token', () => {
+test('loginPlatformPlayer registers the returned session token with expiry', async () => {
   server.sessions.clear();
   const store = {};
 
-  const session = server.loginPlatformPlayer(store, {
+  const session = await server.loginPlatformPlayer(store, {
     platform: 'wechat',
     code: 'login-code',
     nickname: 'Auth Nick',
-  }, 1781450000000);
+  }, {
+    now: 1781450000000,
+    config: server.resolvePlatformAuthConfig({ AUTH_SESSION_TTL_MS: '60000' }),
+  });
 
   assert.equal(server.sessions.get(session.sessionToken).playerId, session.playerId);
   assert.equal(server.sessions.get(session.sessionToken).createdAt, 1781450000000);
+  assert.equal(server.sessions.get(session.sessionToken).expiresAt, 1781450060000);
+  assert.equal(session.expiresAt, 1781450060000);
 });
 
-test('loginPlatformPlayer creates a default player record for a new auth session', () => {
+test('loginPlatformPlayer creates a default player record for a new auth session', async () => {
   const store = {};
   const ctx = createMockContext({
     platform: 'wechat',
@@ -555,18 +560,22 @@ test('loginPlatformPlayer creates a default player record for a new auth session
     nickname: 'Auth Nick',
   });
 
-  const result = server.loginPlatformPlayer(store, ctx.request.body, 1781450000000);
+  const result = await server.loginPlatformPlayer(store, ctx.request.body, {
+    now: 1781450000000,
+    config: server.resolvePlatformAuthConfig({ AUTH_SESSION_TTL_MS: '60000' }),
+  });
 
   assert.equal(result.ok, true);
   assert.equal(result.platform, 'wechat');
   assert.equal(result.openid, 'wechat_mock_login-code');
   assert.equal(result.playerId, 'wechat_wechat_mock_login-code');
   assert.equal(result.sessionToken, 'mock_session_wechat_wechat_mock_login-code');
+  assert.equal(result.expiresAt, 1781450060000);
   assert.equal(store['wechat_wechat_mock_login-code'].nickname, 'Auth Nick');
   assert.equal(store['wechat_wechat_mock_login-code'].lastSaveTime, 1781450000000);
 });
 
-test('loginPlatformPlayer preserves existing gameplay data on repeat login', () => {
+test('loginPlatformPlayer preserves existing gameplay data on repeat login', async () => {
   const store = {
     web_web_mock_demo_player: {
       ...server.createDefaultPlayer('web_web_mock_demo_player', 'Existing'),
@@ -576,7 +585,7 @@ test('loginPlatformPlayer preserves existing gameplay data on repeat login', () 
     },
   };
 
-  const result = server.loginPlatformPlayer(store, {
+  const result = await server.loginPlatformPlayer(store, {
     platform: 'web',
     code: 'demo_player',
     nickname: 'New Nick',
@@ -589,18 +598,24 @@ test('loginPlatformPlayer preserves existing gameplay data on repeat login', () 
   assert.equal(store.web_web_mock_demo_player.highestItemLevel, 7);
 });
 
-test('handleAuthLogin writes auth result or bad request response', () => {
+test('handleAuthLogin writes auth result or bad request response', async () => {
   const store = {};
   const okCtx = createMockContext({ platform: 'douyin', code: 'abc', nickname: 'Douyin' });
 
-  server.handleAuthLogin(okCtx, store, 1781450000000);
+  await server.handleAuthLogin(okCtx, store, {
+    now: 1781450000000,
+    config: server.resolvePlatformAuthConfig({ AUTH_SESSION_TTL_MS: '60000' }),
+  });
 
   assert.equal(okCtx.status, 200);
   assert.equal(okCtx.body.playerId, 'douyin_douyin_mock_abc');
+  assert.equal(okCtx.body.expiresAt, 1781450060000);
   assert.equal(store.douyin_douyin_mock_abc.nickname, 'Douyin');
 
   const badCtx = createMockContext({ platform: 'ios', code: 'abc' });
-  server.handleAuthLogin(badCtx, store, 1781450000000);
+  await server.handleAuthLogin(badCtx, store, {
+    now: 1781450000000,
+  });
 
   assert.equal(badCtx.status, 400);
   assert.deepEqual(badCtx.body, {
@@ -609,9 +624,29 @@ test('handleAuthLogin writes auth result or bad request response', () => {
   });
 });
 
+test('handleAuthLogin returns 502 when configured platform exchange fails', async () => {
+  const store = {};
+  const ctx = createMockContext({ platform: 'wechat', code: 'bad-code' });
+  const config = server.resolvePlatformAuthConfig({
+    WECHAT_APP_ID: 'wx-app',
+    WECHAT_APP_SECRET: 'wx-secret',
+    WECHAT_CODE_EXCHANGE_URL: 'https://wechat.example/code',
+  });
+
+  await server.handleAuthLogin(ctx, store, {
+    now: 1781450000000,
+    config,
+    fetchImpl: async () => createJsonResponse({ errcode: 40029, errmsg: 'invalid code' }),
+  });
+
+  assert.equal(ctx.status, 502);
+  assert.deepEqual(ctx.body, { ok: false, error: 'platform auth exchange failed' });
+  assert.deepEqual(store, {});
+});
+
 function createAuthorizedSession(platform, code, now = 1781450000000) {
   const session = server.createAuthSession({ platform, code });
-  server.registerAuthSession(session, now);
+  server.registerAuthSession(session, now, server.DEFAULT_AUTH_SESSION_TTL_MS);
   return session;
 }
 
@@ -677,7 +712,7 @@ test('handlePlayerLoad remains public without token and rejects invalid token wh
   const otherSession = createAuthorizedSession('web', 'other');
   const mismatchCtx = createMockContext({}, { authorization: `Bearer ${otherSession.sessionToken}` });
   mismatchCtx.params = { playerId: 'public_player' };
-  server.handlePlayerLoad(mismatchCtx, store);
+  server.handlePlayerLoad(mismatchCtx, store, 1781450000000);
   assert.equal(mismatchCtx.status, 403);
 });
 
