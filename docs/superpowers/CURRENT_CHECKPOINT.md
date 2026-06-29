@@ -1,4 +1,4 @@
-# Current Checkpoint - 2026-06-25
+# Current Checkpoint - 2026-06-29
 
 ## Project
 
@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-D completed**.
+Current development node: **Stage 3-E completed**.
 
 Completed capabilities:
 
@@ -61,15 +61,19 @@ Completed capabilities:
 - WeChat and Douyin login codes can be exchanged through configured server-side credentials and endpoints.
 - Complete platform auth configuration fails closed when provider exchange fails instead of silently minting mock identities.
 - Client auth response typing accepts the server session expiry field without storing platform secrets.
+- Server auth sessions are persisted to `server/data/sessionData.json`.
+- Server startup restores non-expired persisted auth sessions.
+- Expired persisted sessions are pruned during load and write boundaries.
 
 ## Recent Stage 3-E Progress
 
 Completed so far:
 
-1. Stage 3-E persistent session store direction is selected.
-2. Stage 3-E persistent session store design is committed.
-3. Stage 3-E implementation plan is written and ready for Task 1.
-4. Work is paused on 2026-06-25 before implementation; next session should start with Stage 3-E Task 1.
+1. Stage 3-E persistent session store design and implementation plan are committed.
+2. Server session records persist to `server/data/sessionData.json`.
+3. Startup loads active persisted sessions into the in-memory session map.
+4. Expired or malformed persisted session records are skipped and pruned.
+5. Simulated restart authorization is covered by server tests.
 
 ## Recent Stage 3-D Progress
 
@@ -116,12 +120,11 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-E Task 1 pending**.
+Current development node for next session: **Stage 3-F planning pending**.
 
 Recommended next node:
 
-- Begin Stage 3-E Task 1: add JSON session-store file helpers.
-- Follow `docs/superpowers/plans/2026-06-25-stage-3e-persistent-session-store.md` task-by-task with TDD.
+- Production storage selection, server-authoritative board mutation, or account linking/migration after persistent session behavior has been verified.
 
 ## Key Files
 
@@ -178,13 +181,13 @@ Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 79 pass, 0 fail
+# 89 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
 # 37 pass, 0 fail
 
 npx.cmd --yes --package typescript@5.4.5 tsc --noEmit 2>&1 | Select-String -Pattern 'assets/scripts'
-# no assets/scripts output
+# no assets/scripts output; PowerShell returned exit code 1 because there were no matches
 ```
 
 Known note:
@@ -197,13 +200,13 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-E Task 1**.
+Recommended next node: **Stage 3-F planning**.
 
 Suggested scope:
 
-- Add `server/data/sessionData.json` file helpers.
-- Add tests for session store initialization, read fallback, and stable writes.
-- Commit the first implementation slice before continuing to persisted session loading.
+- Decide whether player data should move from JSON files to SQLite, Redis, Postgres, or another persistent store.
+- Decide whether generate, merge, ad reward, and score changes should become server-authoritative.
+- Decide whether account linking or account migration is needed before production launch.
 
 Avoid changing core merge rules while platform SDK behavior is being integrated.
 

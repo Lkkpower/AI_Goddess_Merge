@@ -58,6 +58,7 @@ Optional client context fields: `clientRewardValue`, `clientCoins`, `clientScore
 ## Data
 
 Player data is stored in `server/data/playerData.json` for the demo.
+Auth sessions are stored in `server/data/sessionData.json` so active bearer tokens can survive a local server restart.
 
 ```json
 {
@@ -78,8 +79,25 @@ Player data is stored in `server/data/playerData.json` for the demo.
 
 After an accepted ad reward, `lastAdRewardClientContext` stores the optional client context fields from the `/ad/reward` request.
 
+Session records are keyed by `sessionToken`:
+
+```json
+{
+  "mock_session_web_web_mock_demo_player": {
+    "sessionToken": "mock_session_web_web_mock_demo_player",
+    "playerId": "web_web_mock_demo_player",
+    "platform": "web",
+    "openid": "web_mock_demo_player",
+    "createdAt": 1781450000000,
+    "expiresAt": 1782054800000
+  }
+}
+```
+
+Expired sessions are pruned when the server loads persisted sessions and when a new session is persisted.
+
 ## Notes
 
 - This JSON-file store is for local demo only.
-- Use a database and login/session validation before production.
+- Use a database or managed session store before production traffic.
 - Add server-side ad verification before enabling real rewards.
