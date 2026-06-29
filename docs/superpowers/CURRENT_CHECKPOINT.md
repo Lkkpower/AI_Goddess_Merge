@@ -75,6 +75,18 @@ Completed so far:
 4. Expired or malformed persisted session records are skipped and pruned.
 5. Simulated restart authorization is covered by server tests.
 
+## Recent Stage 3-F Planning Progress
+
+Completed so far:
+
+1. Stage 3-F direction selected: server-authoritative gameplay.
+2. First Stage 3-F slice selected: server-authoritative initial board creation, generate, and merge.
+3. Platform behavior selected: platform environments are strict server-authoritative; browser and Cocos preview keep local fallback.
+4. Initial board creation is included in the server-authoritative scope.
+5. Design approach selected: add server-authoritative board action endpoints while keeping `POST /player/:playerId` as a transitional compatibility path.
+6. Stage 3-F design spec is committed at `docs/superpowers/specs/2026-06-29-stage-3f-server-authoritative-generate-merge-design.md`.
+7. Latest Stage 3-F planning commit: `31110ae docs: add stage 3f authoritative gameplay design`.
+
 ## Recent Stage 3-D Progress
 
 Completed so far:
@@ -120,11 +132,13 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-F planning pending**.
+Current development node for next session: **Stage 3-F design spec written and committed; user review / implementation planning pending**.
 
 Recommended next node:
 
-- Production storage selection, server-authoritative board mutation, or account linking/migration after persistent session behavior has been verified.
+- Review `docs/superpowers/specs/2026-06-29-stage-3f-server-authoritative-generate-merge-design.md`.
+- If the spec is accepted, invoke the `writing-plans` skill and create the Stage 3-F implementation plan.
+- Do not start implementation until the implementation plan is written and approved.
 
 ## Key Files
 
@@ -166,6 +180,7 @@ Docs:
 
 - `README.md`
 - `README_CLIENT.md`
+- `docs/superpowers/specs/2026-06-29-stage-3f-server-authoritative-generate-merge-design.md`
 - `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`
 - `docs/superpowers/specs/2026-06-25-stage-3e-persistent-session-store-design.md`
 - `docs/superpowers/plans/2026-06-25-stage-3e-persistent-session-store.md`
@@ -200,25 +215,25 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-F planning**.
+Recommended next node: **Stage 3-F implementation planning**.
 
 Suggested scope:
 
-- Decide whether player data should move from JSON files to SQLite, Redis, Postgres, or another persistent store.
-- Decide whether generate, merge, ad reward, and score changes should become server-authoritative.
-- Decide whether account linking or account migration is needed before production launch.
+- Write the implementation plan for server-authoritative initial board creation, generate, and merge.
+- Plan server tests before implementation.
+- Plan client platform-vs-preview branching before implementation.
 
-Avoid changing core merge rules while platform SDK behavior is being integrated.
+Avoid expanding this stage into production storage, account linking, ad reward migration, or full-save lockdown.
 
 ## How To Resume
 
 When reopening development, start from:
 
 1. Open `D:\project\AI_Goddess_Merge`.
-2. Read `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`.
-3. Read `docs/superpowers/plans/2026-06-16-stage-3b-platform-auth-request.md` for the completed Stage 3-B implementation checkpoint.
-4. Read `docs/superpowers/plans/2026-06-17-stage-3c-session-validation-light-migration.md` for the active Stage 3-C implementation plan.
-5. Before resuming Stage 3-C, re-run baseline verification:
+2. Read `docs/superpowers/specs/2026-06-29-stage-3f-server-authoritative-generate-merge-design.md`.
+3. Confirm whether the Stage 3-F design spec is accepted as-is.
+4. If accepted, invoke `writing-plans` and write the Stage 3-F implementation plan.
+5. Before implementing Stage 3-F, re-run baseline verification:
    ```powershell
    node --test tests\server.test.js tests\client-scaffold.test.js
    npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
