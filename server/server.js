@@ -320,6 +320,43 @@ function isSessionExpired(session, now = Date.now()) {
   return Boolean(session && Number.isFinite(Number(session.expiresAt)) && now >= Number(session.expiresAt));
 }
 
+function isValidSessionRecord(record) {
+  return Boolean(
+    record
+    && typeof record === "object"
+    && typeof record.sessionToken === "string"
+    && record.sessionToken.trim()
+    && typeof record.playerId === "string"
+    && record.playerId.trim()
+    && typeof record.platform === "string"
+    && ALLOWED_AUTH_PLATFORMS.includes(record.platform)
+    && typeof record.openid === "string"
+    && record.openid.trim()
+    && Number.isFinite(Number(record.createdAt))
+    && Number.isFinite(Number(record.expiresAt))
+  );
+}
+
+function serializeSessions(sessionMap = sessions, now = Date.now()) {
+  const store = {};
+  sessionMap.forEach((record, token) => {
+    if (isValidSessionRecord(record) && token === record.sessionToken && !isSessionExpired(record, now)) {
+      store[record.sessionToken] = record;
+    }
+  });
+  return store;
+}
+
+function loadSessionsFromStore(store, now = Date.now()) {
+  sessions.clear();
+  Object.values(store && typeof store === "object" && !Array.isArray(store) ? store : {}).forEach((record) => {
+    if (isValidSessionRecord(record) && !isSessionExpired(record, now)) {
+      sessions.set(record.sessionToken, record);
+    }
+  });
+  return sessions.size;
+}
+
 function parseBearerToken(headerValue) {
   if (typeof headerValue !== "string") {
     return "";
@@ -684,6 +721,9 @@ module.exports = {
   sessions,
   registerAuthSession,
   isSessionExpired,
+  isValidSessionRecord,
+  serializeSessions,
+  loadSessionsFromStore,
   parseBearerToken,
   getAuthorizationHeader,
   getSessionFromAuthorization,

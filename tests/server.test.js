@@ -520,6 +520,81 @@ test('registerAuthSession stores session records by token with expiry', () => {
   assert.deepEqual(server.sessions.get(session.sessionToken), record);
 });
 
+test('isValidSessionRecord accepts complete session records only', () => {
+  const record = {
+    sessionToken: 'token',
+    playerId: 'player',
+    platform: 'web',
+    openid: 'web_mock_player',
+    createdAt: 1781450000000,
+    expiresAt: 1781450060000,
+  };
+
+  assert.equal(server.isValidSessionRecord(record), true);
+  assert.equal(server.isValidSessionRecord({ ...record, sessionToken: '' }), false);
+  assert.equal(server.isValidSessionRecord({ ...record, platform: 'ios' }), false);
+  assert.equal(server.isValidSessionRecord({ ...record, createdAt: 'now' }), false);
+  assert.equal(server.isValidSessionRecord({ ...record, expiresAt: 'later' }), false);
+});
+
+test('serializeSessions returns only valid non-expired records keyed by token', () => {
+  const sessionMap = new Map();
+  const active = {
+    sessionToken: 'active-token',
+    playerId: 'active-player',
+    platform: 'web',
+    openid: 'web_mock_active',
+    createdAt: 1781450000000,
+    expiresAt: 1781450060000,
+  };
+  const expired = {
+    sessionToken: 'expired-token',
+    playerId: 'expired-player',
+    platform: 'wechat',
+    openid: 'wechat_mock_expired',
+    createdAt: 1781450000000,
+    expiresAt: 1781450000500,
+  };
+  sessionMap.set(active.sessionToken, active);
+  sessionMap.set(expired.sessionToken, expired);
+  sessionMap.set('bad-token', { sessionToken: 'bad-token', playerId: '', platform: 'web' });
+
+  assert.deepEqual(server.serializeSessions(sessionMap, 1781450001000), {
+    'active-token': active,
+  });
+});
+
+test('loadSessionsFromStore loads active records and skips expired or invalid records', () => {
+  server.sessions.clear();
+  const active = {
+    sessionToken: 'active-token',
+    playerId: 'active-player',
+    platform: 'web',
+    openid: 'web_mock_active',
+    createdAt: 1781450000000,
+    expiresAt: 1781450060000,
+  };
+  const expired = {
+    sessionToken: 'expired-token',
+    playerId: 'expired-player',
+    platform: 'wechat',
+    openid: 'wechat_mock_expired',
+    createdAt: 1781450000000,
+    expiresAt: 1781450000500,
+  };
+
+  const loaded = server.loadSessionsFromStore({
+    [active.sessionToken]: active,
+    [expired.sessionToken]: expired,
+    invalid: { sessionToken: 'invalid', playerId: '', platform: 'web' },
+  }, 1781450001000);
+
+  assert.equal(loaded, 1);
+  assert.deepEqual(server.sessions.get(active.sessionToken), active);
+  assert.equal(server.sessions.has(expired.sessionToken), false);
+  assert.equal(server.sessions.has('invalid'), false);
+});
+
 test('parseBearerToken accepts bearer headers and rejects malformed values', () => {
   assert.equal(server.parseBearerToken('Bearer token-1'), 'token-1');
   assert.equal(server.parseBearerToken('bearer token-2'), 'token-2');
