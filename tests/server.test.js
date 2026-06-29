@@ -936,6 +936,60 @@ test('handlePlayerLoad remains public without token and rejects invalid token wh
   assert.equal(mismatchCtx.status, 403);
 });
 
+test('loadPersistedSessionsFromFile restores active sessions from disk', () => {
+  server.sessions.clear();
+  const filePath = createTempSessionFilePath('sessionData.restore.test.json');
+  cleanupTempFile(filePath);
+  const active = {
+    sessionToken: 'restore-token',
+    playerId: 'restore-player',
+    platform: 'web',
+    openid: 'web_mock_restore',
+    createdAt: 1781450000000,
+    expiresAt: 1781450060000,
+  };
+  server.writeSessionStore({ [active.sessionToken]: active }, filePath);
+
+  const loaded = server.loadPersistedSessionsFromFile({
+    now: 1781450001000,
+    filePath,
+  });
+
+  assert.equal(loaded, 1);
+  assert.deepEqual(server.sessions.get(active.sessionToken), active);
+  cleanupTempFile(filePath);
+});
+
+test('persisted session authorizes player request after simulated restart', async () => {
+  server.sessions.clear();
+  const filePath = createTempSessionFilePath('sessionData.restart.test.json');
+  cleanupTempFile(filePath);
+  const store = {};
+  const session = await server.loginPlatformPlayer(store, {
+    platform: 'web',
+    code: 'restart-player',
+    nickname: 'Restart',
+  }, {
+    now: 1781450000000,
+    config: server.resolvePlatformAuthConfig({ AUTH_SESSION_TTL_MS: '60000' }),
+    sessionFilePath: filePath,
+  });
+
+  server.sessions.clear();
+  server.loadPersistedSessionsFromFile({
+    now: 1781450001000,
+    filePath,
+  });
+
+  const ctx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
+  ctx.params = { playerId: session.playerId };
+  server.handlePlayerLoad(ctx, store, 1781450001000);
+
+  assert.equal(ctx.status, 200);
+  assert.equal(ctx.body.playerId, session.playerId);
+  cleanupTempFile(filePath);
+});
+
 test('handleAdRewardClaim requires a matching player session', () => {
   server.sessions.clear();
   const store = {};

@@ -378,6 +378,16 @@ function persistSessionRecord(record, options = {}) {
   return prunedStore;
 }
 
+function loadPersistedSessionsFromFile(options = {}) {
+  const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+  const filePath = options.filePath || SESSION_DATA_FILE;
+  const store = readSessionStore(filePath);
+  const loaded = loadSessionsFromStore(store, now);
+  const prunedStore = serializeSessions(sessions, now);
+  writeSessionStore(prunedStore, filePath);
+  return loaded;
+}
+
 function parseBearerToken(headerValue) {
   if (typeof headerValue !== "string") {
     return "";
@@ -648,6 +658,8 @@ async function errorHandler(ctx, next) {
 
 function createApp() {
   ensureDataFile();
+  ensureSessionDataFile();
+  loadPersistedSessionsFromFile();
 
   const app = new Koa();
   const router = new Router();
@@ -750,6 +762,7 @@ module.exports = {
   serializeSessions,
   loadSessionsFromStore,
   persistSessionRecord,
+  loadPersistedSessionsFromFile,
   parseBearerToken,
   getAuthorizationHeader,
   getSessionFromAuthorization,
