@@ -1,5 +1,7 @@
 ﻿const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const server = require('../server/server.js');
 
@@ -209,6 +211,70 @@ test('getSessionTtlMs falls back for invalid values', () => {
   assert.equal(server.getSessionTtlMs({ AUTH_SESSION_TTL_MS: '-5' }), server.DEFAULT_AUTH_SESSION_TTL_MS);
   assert.equal(server.getSessionTtlMs({ AUTH_SESSION_TTL_MS: 'abc' }), server.DEFAULT_AUTH_SESSION_TTL_MS);
   assert.equal(server.getSessionTtlMs({}), server.DEFAULT_AUTH_SESSION_TTL_MS);
+});
+
+function createTempSessionFilePath(name) {
+  return path.join(__dirname, '..', 'server', 'data', name);
+}
+
+function cleanupTempFile(filePath) {
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+}
+
+test('ensureSessionDataFile creates an empty session store file', () => {
+  const filePath = createTempSessionFilePath('sessionData.ensure.test.json');
+  cleanupTempFile(filePath);
+
+  server.ensureSessionDataFile(filePath);
+
+  assert.deepEqual(JSON.parse(fs.readFileSync(filePath, 'utf8')), {});
+  cleanupTempFile(filePath);
+});
+
+test('readSessionStore reads valid session json and falls back for invalid content', () => {
+  const filePath = createTempSessionFilePath('sessionData.read.test.json');
+  cleanupTempFile(filePath);
+  const sessionRecord = {
+    sessionToken: 'token',
+    playerId: 'player',
+    platform: 'web',
+    openid: 'web_mock_player',
+    createdAt: 1781450000000,
+    expiresAt: 1781450060000,
+  };
+  server.writeSessionStore({ token: sessionRecord }, filePath);
+
+  assert.deepEqual(server.readSessionStore(filePath), { token: sessionRecord });
+
+  fs.writeFileSync(filePath, '{bad json', 'utf8');
+  assert.deepEqual(server.readSessionStore(filePath), {});
+
+  fs.writeFileSync(filePath, '[]', 'utf8');
+  assert.deepEqual(server.readSessionStore(filePath), {});
+  cleanupTempFile(filePath);
+});
+
+test('writeSessionStore writes stable formatted session json', () => {
+  const filePath = createTempSessionFilePath('sessionData.write.test.json');
+  cleanupTempFile(filePath);
+  const sessionRecord = {
+    sessionToken: 'token',
+    playerId: 'player',
+    platform: 'web',
+    openid: 'web_mock_player',
+    createdAt: 1781450000000,
+    expiresAt: 1781450060000,
+  };
+
+  server.writeSessionStore({ token: sessionRecord }, filePath);
+
+  assert.equal(
+    fs.readFileSync(filePath, 'utf8'),
+    `${JSON.stringify({ token: sessionRecord }, null, 2)}\n`
+  );
+  cleanupTempFile(filePath);
 });
 
 test('hasCompletePlatformAuthConfig requires app id secret and exchange url', () => {

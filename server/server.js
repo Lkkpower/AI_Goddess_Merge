@@ -8,6 +8,7 @@ const path = require("path");
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "playerData.json");
+const SESSION_DATA_FILE = path.join(DATA_DIR, "sessionData.json");
 const ALLOWED_REWARD_TYPES = ["clear_low_items", "coin_bonus", "high_level_item"];
 const ALLOWED_AUTH_PLATFORMS = ["wechat", "douyin", "web"];
 const AD_REWARD_COOLDOWN_MS = 30 * 1000;
@@ -39,6 +40,33 @@ function readPlayerStore() {
 function writePlayerStore(store) {
   ensureDataFile();
   fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), "utf8");
+}
+
+function ensureSessionDataFile(filePath = SESSION_DATA_FILE) {
+  const dirPath = path.dirname(filePath);
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}, null, 2), "utf8");
+  }
+}
+
+function readSessionStore(filePath = SESSION_DATA_FILE) {
+  ensureSessionDataFile(filePath);
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    const parsed = raw.trim() ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    console.warn("[server] failed to read session store", error);
+    return {};
+  }
+}
+
+function writeSessionStore(store, filePath = SESSION_DATA_FILE) {
+  ensureSessionDataFile(filePath);
+  fs.writeFileSync(filePath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
 }
 
 function createDefaultPlayer(playerId, nickname = "游客") {
@@ -622,8 +650,12 @@ if (require.main === module) {
 module.exports = {
   createApp,
   ensureDataFile,
+  SESSION_DATA_FILE,
+  ensureSessionDataFile,
   readPlayerStore,
   writePlayerStore,
+  readSessionStore,
+  writeSessionStore,
   createDefaultPlayer,
   validatePlayerData,
   mergePlayerSaveData,
