@@ -357,6 +357,27 @@ function loadSessionsFromStore(store, now = Date.now()) {
   return sessions.size;
 }
 
+function persistSessionRecord(record, options = {}) {
+  const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+  const filePath = options.filePath || SESSION_DATA_FILE;
+  if (!isValidSessionRecord(record) || isSessionExpired(record, now)) {
+    return serializeSessions(sessions, now);
+  }
+  sessions.set(record.sessionToken, record);
+  const store = {
+    ...readSessionStore(filePath),
+    [record.sessionToken]: record,
+  };
+  const prunedStore = {};
+  Object.values(store).forEach((sessionRecord) => {
+    if (isValidSessionRecord(sessionRecord) && !isSessionExpired(sessionRecord, now)) {
+      prunedStore[sessionRecord.sessionToken] = sessionRecord;
+    }
+  });
+  writeSessionStore(prunedStore, filePath);
+  return prunedStore;
+}
+
 function parseBearerToken(headerValue) {
   if (typeof headerValue !== "string") {
     return "";
@@ -428,6 +449,10 @@ async function loginPlatformPlayer(store, payload, options = {}) {
   }
 
   const record = registerAuthSession(session, now, config.sessionTtlMs);
+  persistSessionRecord(record, {
+    now,
+    filePath: options.sessionFilePath,
+  });
   return {
     ...session,
     expiresAt: record.expiresAt,
@@ -724,6 +749,7 @@ module.exports = {
   isValidSessionRecord,
   serializeSessions,
   loadSessionsFromStore,
+  persistSessionRecord,
   parseBearerToken,
   getAuthorizationHeader,
   getSessionFromAuthorization,

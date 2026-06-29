@@ -676,6 +676,8 @@ test('requirePlayerSession returns session or writes auth errors', () => {
 
 test('loginPlatformPlayer registers the returned session token with expiry', async () => {
   server.sessions.clear();
+  const filePath = createTempSessionFilePath('sessionData.register-login.test.json');
+  cleanupTempFile(filePath);
   const store = {};
 
   const session = await server.loginPlatformPlayer(store, {
@@ -685,15 +687,81 @@ test('loginPlatformPlayer registers the returned session token with expiry', asy
   }, {
     now: 1781450000000,
     config: server.resolvePlatformAuthConfig({ AUTH_SESSION_TTL_MS: '60000' }),
+    sessionFilePath: filePath,
   });
 
   assert.equal(server.sessions.get(session.sessionToken).playerId, session.playerId);
   assert.equal(server.sessions.get(session.sessionToken).createdAt, 1781450000000);
   assert.equal(server.sessions.get(session.sessionToken).expiresAt, 1781450060000);
   assert.equal(session.expiresAt, 1781450060000);
+  cleanupTempFile(filePath);
+});
+
+test('persistSessionRecord writes active sessions and prunes expired persisted records', () => {
+  const filePath = createTempSessionFilePath('sessionData.persist.test.json');
+  cleanupTempFile(filePath);
+  const expired = {
+    sessionToken: 'expired-token',
+    playerId: 'expired-player',
+    platform: 'web',
+    openid: 'web_mock_expired',
+    createdAt: 1781450000000,
+    expiresAt: 1781450000500,
+  };
+  server.writeSessionStore({ [expired.sessionToken]: expired }, filePath);
+  const active = {
+    sessionToken: 'active-token',
+    playerId: 'active-player',
+    platform: 'web',
+    openid: 'web_mock_active',
+    createdAt: 1781450001000,
+    expiresAt: 1781450061000,
+  };
+
+  server.persistSessionRecord(active, {
+    now: 1781450001000,
+    filePath,
+  });
+
+  assert.deepEqual(server.readSessionStore(filePath), {
+    [active.sessionToken]: active,
+  });
+  assert.deepEqual(server.sessions.get(active.sessionToken), active);
+  cleanupTempFile(filePath);
+});
+
+test('loginPlatformPlayer persists the returned session record when a session file is provided', async () => {
+  server.sessions.clear();
+  const filePath = createTempSessionFilePath('sessionData.login.test.json');
+  cleanupTempFile(filePath);
+  const store = {};
+
+  const session = await server.loginPlatformPlayer(store, {
+    platform: 'web',
+    code: 'demo_player',
+    nickname: 'Demo',
+  }, {
+    now: 1781450000000,
+    config: server.resolvePlatformAuthConfig({ AUTH_SESSION_TTL_MS: '60000' }),
+    sessionFilePath: filePath,
+  });
+
+  assert.deepEqual(server.readSessionStore(filePath), {
+    [session.sessionToken]: {
+      sessionToken: session.sessionToken,
+      playerId: session.playerId,
+      platform: session.platform,
+      openid: session.openid,
+      createdAt: 1781450000000,
+      expiresAt: 1781450060000,
+    },
+  });
+  cleanupTempFile(filePath);
 });
 
 test('loginPlatformPlayer creates a default player record for a new auth session', async () => {
+  const filePath = createTempSessionFilePath('sessionData.default-player-login.test.json');
+  cleanupTempFile(filePath);
   const store = {};
   const ctx = createMockContext({
     platform: 'wechat',
@@ -704,6 +772,7 @@ test('loginPlatformPlayer creates a default player record for a new auth session
   const result = await server.loginPlatformPlayer(store, ctx.request.body, {
     now: 1781450000000,
     config: server.resolvePlatformAuthConfig({ AUTH_SESSION_TTL_MS: '60000' }),
+    sessionFilePath: filePath,
   });
 
   assert.equal(result.ok, true);
@@ -714,9 +783,12 @@ test('loginPlatformPlayer creates a default player record for a new auth session
   assert.equal(result.expiresAt, 1781450060000);
   assert.equal(store['wechat_wechat_mock_login-code'].nickname, 'Auth Nick');
   assert.equal(store['wechat_wechat_mock_login-code'].lastSaveTime, 1781450000000);
+  cleanupTempFile(filePath);
 });
 
 test('loginPlatformPlayer preserves existing gameplay data on repeat login', async () => {
+  const filePath = createTempSessionFilePath('sessionData.repeat-login.test.json');
+  cleanupTempFile(filePath);
   const store = {
     web_web_mock_demo_player: {
       ...server.createDefaultPlayer('web_web_mock_demo_player', 'Existing'),
@@ -730,6 +802,8 @@ test('loginPlatformPlayer preserves existing gameplay data on repeat login', asy
     platform: 'web',
     code: 'demo_player',
     nickname: 'New Nick',
+  }, {
+    sessionFilePath: filePath,
   });
 
   assert.equal(result.playerId, 'web_web_mock_demo_player');
@@ -737,15 +811,19 @@ test('loginPlatformPlayer preserves existing gameplay data on repeat login', asy
   assert.equal(store.web_web_mock_demo_player.coins, 300);
   assert.equal(store.web_web_mock_demo_player.score, 900);
   assert.equal(store.web_web_mock_demo_player.highestItemLevel, 7);
+  cleanupTempFile(filePath);
 });
 
 test('handleAuthLogin writes auth result or bad request response', async () => {
+  const filePath = createTempSessionFilePath('sessionData.handle-login.test.json');
+  cleanupTempFile(filePath);
   const store = {};
   const okCtx = createMockContext({ platform: 'douyin', code: 'abc', nickname: 'Douyin' });
 
   await server.handleAuthLogin(okCtx, store, {
     now: 1781450000000,
     config: server.resolvePlatformAuthConfig({ AUTH_SESSION_TTL_MS: '60000' }),
+    sessionFilePath: filePath,
   });
 
   assert.equal(okCtx.status, 200);
@@ -763,6 +841,7 @@ test('handleAuthLogin writes auth result or bad request response', async () => {
     ok: false,
     error: 'platform is not supported',
   });
+  cleanupTempFile(filePath);
 });
 
 test('handleAuthLogin returns 502 when configured platform exchange fails', async () => {
