@@ -39,6 +39,39 @@ curl -X POST http://localhost:3000/player/demo_player \
   -d '{"playerId":"demo_player","nickname":"游客","coins":100,"score":200,"highestItemLevel":3,"unlockedSkins":[],"board":[],"adWatchCount":0}'
 ```
 
+### Board Ensure
+
+Creates the initial remote board only when the authenticated player's persisted board has no occupied cells.
+
+```bash
+curl -X POST http://localhost:3000/player/web_web_mock_demo_player/board/ensure \
+  -H "Authorization: Bearer mock_session_web_web_mock_demo_player" \
+  -H "Content-Type: application/json"
+```
+
+### Board Generate
+
+Generates one server-selected low-level item into an empty board cell.
+
+```bash
+curl -X POST http://localhost:3000/player/web_web_mock_demo_player/board/generate \
+  -H "Authorization: Bearer mock_session_web_web_mock_demo_player" \
+  -H "Content-Type: application/json"
+```
+
+### Board Merge
+
+Merges two occupied cells when both item IDs match and the item is not max level.
+
+```bash
+curl -X POST http://localhost:3000/player/web_web_mock_demo_player/board/merge \
+  -H "Authorization: Bearer mock_session_web_web_mock_demo_player" \
+  -H "Content-Type: application/json" \
+  -d '{"fromIndex":0,"toIndex":1}'
+```
+
+Board action errors return `{ "ok": false, "error": "<CODE>" }`. Current codes are `BOARD_FULL`, `INVALID_CELL_INDEX`, `EMPTY_SOURCE_CELL`, `EMPTY_TARGET_CELL`, `ITEM_MISMATCH`, `ITEM_MAX_LEVEL`, and `PLAYER_NOT_FOUND`.
+
 ### Leaderboard
 
 ```bash

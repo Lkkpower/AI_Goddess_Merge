@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-E completed**.
+Current development node: **Stage 3-F implementation completed**.
 
 Completed capabilities:
 
@@ -87,6 +87,18 @@ Completed so far:
 6. Stage 3-F design spec is committed at `docs/superpowers/specs/2026-06-29-stage-3f-server-authoritative-generate-merge-design.md`.
 7. Latest Stage 3-F planning commit: `31110ae docs: add stage 3f authoritative gameplay design`.
 
+## Recent Stage 3-F Implementation Progress
+
+Completed so far:
+
+1. Added server-side gameplay config for the 5x6 board and 20-level merge chain.
+2. Added server-authoritative board ensure, generate, and merge helpers.
+3. Added authenticated Koa endpoints for board ensure, generate, and merge.
+4. Added client remote board action requests.
+5. Routed authenticated non-web platform generation and merge through server board actions.
+6. Preserved browser and Cocos preview local generation and merge fallback.
+7. Documented the board action API.
+
 ## Recent Stage 3-D Progress
 
 Completed so far:
@@ -132,13 +144,12 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-F design spec written and committed; user review / implementation planning pending**.
+Current development node for next session: **Stage 3-F implementation completed; manual Cocos/platform preview pending if not already performed**.
 
 Recommended next node:
 
-- Review `docs/superpowers/specs/2026-06-29-stage-3f-server-authoritative-generate-merge-design.md`.
-- If the spec is accepted, invoke the `writing-plans` skill and create the Stage 3-F implementation plan.
-- Do not start implementation until the implementation plan is written and approved.
+- Run the Cocos Creator preview checklist below.
+- Then choose the next Stage 3-G scope: full-save lockdown, remaining economy command migration, or production storage.
 
 ## Key Files
 
@@ -196,7 +207,7 @@ Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 89 pass, 0 fail
+# 104 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
 # 37 pass, 0 fail
@@ -215,30 +226,28 @@ The repository now has commits for the Stage 2B-B spec, implementation plan, and
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-F implementation planning**.
+Recommended next node: **Stage 3-G scope selection**.
 
 Suggested scope:
 
-- Write the implementation plan for server-authoritative initial board creation, generate, and merge.
-- Plan server tests before implementation.
-- Plan client platform-vs-preview branching before implementation.
+- Full-save lockdown so platform clients cannot bypass server-owned board/economy commands.
+- Remaining economy command migration for ad rewards, daily rewards, skins, or leaderboard submissions.
+- Production storage and account/session hardening.
 
-Avoid expanding this stage into production storage, account linking, ad reward migration, or full-save lockdown.
+Avoid starting Stage 3-G before the Cocos/browser preview checklist has been run for the Stage 3-F flow.
 
 ## How To Resume
 
 When reopening development, start from:
 
 1. Open `D:\project\AI_Goddess_Merge`.
-2. Read `docs/superpowers/specs/2026-06-29-stage-3f-server-authoritative-generate-merge-design.md`.
-3. Confirm whether the Stage 3-F design spec is accepted as-is.
-4. If accepted, invoke `writing-plans` and write the Stage 3-F implementation plan.
-5. Before implementing Stage 3-F, re-run baseline verification:
+2. Read `docs/superpowers/CURRENT_CHECKPOINT.md`.
+3. Run baseline verification:
    ```powershell
    node --test tests\server.test.js tests\client-scaffold.test.js
    npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
    ```
-6. For Cocos preview checks, open the project in Cocos Creator, confirm Canvas has `assets/scripts/ui/SceneBootstrap.ts` mounted, run browser preview, and check:
+4. For Cocos preview checks, open the project in Cocos Creator, confirm Canvas has `assets/scripts/ui/SceneBootstrap.ts` mounted, run browser preview, and check:
    - first-run tutorial
    - tutorial previous/next/finish controls and highlight areas
    - generate clothing
@@ -251,3 +260,5 @@ When reopening development, start from:
    - leaderboard loading and medal rows
    - ad reward choice modal and reward feedback
    - ad failure message path when platform ad returns false
+5. If platform preview is available with the backend running, confirm `/board/ensure`, `/board/generate`, and `/board/merge` are used for authenticated non-web sessions.
+6. Choose the Stage 3-G scope and write a focused implementation plan before changing code.
