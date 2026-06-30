@@ -1,6 +1,7 @@
 ﻿const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const http = require('node:http');
 const path = require('node:path');
 
 const server = require('../server/server.js');
@@ -871,6 +872,71 @@ function createAuthorizedSession(platform, code, now = 1781450000000) {
   return session;
 }
 
+function readFileSnapshot(filePath) {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : null;
+}
+
+function restoreFileSnapshot(filePath, snapshot) {
+  if (snapshot === null) {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    return;
+  }
+
+  fs.writeFileSync(filePath, snapshot, 'utf8');
+}
+
+function writeJsonFile(filePath, value) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+async function postJson(url, { sessionToken, body = {} } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (sessionToken) {
+    headers.Authorization = `Bearer ${sessionToken}`;
+  }
+
+  if (typeof globalThis.fetch === 'function') {
+    const response = await globalThis.fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    return {
+      status: response.status,
+      body: await response.json(),
+    };
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = http.request(url, {
+      method: 'POST',
+      headers,
+    }, (response) => {
+      let raw = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => {
+        raw += chunk;
+      });
+      response.on('end', () => {
+        try {
+          resolve({
+            status: response.statusCode,
+            body: JSON.parse(raw),
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+
+    request.on('error', reject);
+    request.write(JSON.stringify(body));
+    request.end();
+  });
+}
+
 test('handlePlayerSave rejects missing or mismatched sessions before saving', () => {
   server.sessions.clear();
   const store = {};
@@ -1069,6 +1135,122 @@ test('board action handlers return stable bad request error codes', () => {
   server.handleBoardMerge(mergeCtx, store, 1781450000000);
   assert.equal(mergeCtx.status, 400);
   assert.deepEqual(mergeCtx.body, { ok: false, error: 'INVALID_CELL_INDEX' });
+});
+
+test('board action routes persist successful ensure generate and merge actions', async () => {
+  const playerDataPath = path.join(__dirname, '..', 'server', 'data', 'playerData.json');
+  const sessionDataPath = server.SESSION_DATA_FILE;
+  const originalPlayerData = readFileSnapshot(playerDataPath);
+  const originalSessionData = readFileSnapshot(sessionDataPath);
+  let listener;
+
+  server.sessions.clear();
+
+  try {
+    writeJsonFile(sessionDataPath, {});
+
+    const app = server.createApp();
+    listener = app.listen(0);
+    const port = listener.address().port;
+    const baseUrl = `http://127.0.0.1:${port}`;
+    const session = createAuthorizedSession('web', 'board-route-owner', Date.now());
+
+    server.writePlayerStore({
+      [session.playerId]: server.createDefaultPlayer(session.playerId, 'Route Owner'),
+    });
+
+    const ensureResponse = await postJson(`${baseUrl}/player/${session.playerId}/board/ensure`, {
+      sessionToken: session.sessionToken,
+    });
+    assert.equal(ensureResponse.status, 200);
+    assert.equal(occupiedCells(ensureResponse.body.board).length, 6);
+
+    const persistedAfterEnsure = server.readPlayerStore();
+    assert.equal(occupiedCells(persistedAfterEnsure[session.playerId].board).length, 6);
+
+    const generateResponse = await postJson(`${baseUrl}/player/${session.playerId}/board/generate`, {
+      sessionToken: session.sessionToken,
+    });
+    assert.equal(generateResponse.status, 200);
+    assert.equal(occupiedCells(generateResponse.body.board).length, 7);
+
+    const persistedAfterGenerate = server.readPlayerStore();
+    assert.equal(occupiedCells(persistedAfterGenerate[session.playerId].board).length, 7);
+
+    const mergeBoard = fullBoard(null);
+    mergeBoard[0] = { row: 0, col: 0, itemId: 3 };
+    mergeBoard[1] = { row: 0, col: 1, itemId: 3 };
+    server.writePlayerStore({
+      [session.playerId]: {
+        ...persistedAfterGenerate[session.playerId],
+        coins: 10,
+        score: 20,
+        highestItemLevel: 2,
+        unlockedSkins: [],
+        board: mergeBoard,
+      },
+    });
+
+    const mergeResponse = await postJson(`${baseUrl}/player/${session.playerId}/board/merge`, {
+      sessionToken: session.sessionToken,
+      body: { fromIndex: 0, toIndex: 1 },
+    });
+    assert.equal(mergeResponse.status, 200);
+    assert.equal(mergeResponse.body.board[0].itemId, null);
+    assert.equal(mergeResponse.body.board[1].itemId, 4);
+
+    const persistedAfterMerge = server.readPlayerStore()[session.playerId];
+    const mergedItem = gameplayConfig.getItemConfigById(4);
+    assert.equal(persistedAfterMerge.board[0].itemId, null);
+    assert.equal(persistedAfterMerge.board[1].itemId, 4);
+    assert.equal(persistedAfterMerge.coins, 10 + mergedItem.coin);
+    assert.equal(persistedAfterMerge.score, 20 + mergedItem.score);
+    assert.equal(persistedAfterMerge.highestItemLevel, 4);
+    assert.deepEqual(persistedAfterMerge.unlockedSkins, [1]);
+  } finally {
+    server.sessions.clear();
+    if (listener) {
+      await new Promise((resolve) => listener.close(resolve));
+    }
+    restoreFileSnapshot(playerDataPath, originalPlayerData);
+    restoreFileSnapshot(sessionDataPath, originalSessionData);
+  }
+});
+
+test('board action routes reject unauthorized requests without persisting changes', async () => {
+  const playerDataPath = path.join(__dirname, '..', 'server', 'data', 'playerData.json');
+  const sessionDataPath = server.SESSION_DATA_FILE;
+  const originalPlayerData = readFileSnapshot(playerDataPath);
+  const originalSessionData = readFileSnapshot(sessionDataPath);
+  let listener;
+
+  server.sessions.clear();
+
+  try {
+    writeJsonFile(sessionDataPath, {});
+    const playerId = 'web_web_mock_unauthorized-board-route';
+    const seededPlayer = server.createDefaultPlayer(playerId, 'Unauthorized');
+    server.writePlayerStore({ [playerId]: seededPlayer });
+
+    const app = server.createApp();
+    listener = app.listen(0);
+    const port = listener.address().port;
+    const baseUrl = `http://127.0.0.1:${port}`;
+
+    const response = await postJson(`${baseUrl}/player/${playerId}/board/generate`);
+    assert.equal(response.status, 401);
+    assert.deepEqual(response.body, { ok: false, error: 'session is required' });
+
+    const persistedStore = server.readPlayerStore();
+    assert.deepEqual(persistedStore[playerId], seededPlayer);
+  } finally {
+    server.sessions.clear();
+    if (listener) {
+      await new Promise((resolve) => listener.close(resolve));
+    }
+    restoreFileSnapshot(playerDataPath, originalPlayerData);
+    restoreFileSnapshot(sessionDataPath, originalSessionData);
+  }
 });
 
 function occupiedCells(board) {
