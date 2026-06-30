@@ -182,14 +182,18 @@ function getEmptyBoardCells(board) {
   return board.filter((cell) => cell.itemId === null);
 }
 
+function pickRandomCell(cells, randomFn = Math.random) {
+  const index = Math.min(cells.length - 1, Math.floor(randomFn() * cells.length));
+  return cells[index];
+}
+
 function spawnServerLowLevelItem(board, randomFn = Math.random) {
   const emptyCells = getEmptyBoardCells(board);
   if (emptyCells.length === 0) {
     throw createBoardError("BOARD_FULL");
   }
 
-  const emptyIndex = Math.min(emptyCells.length - 1, Math.floor(randomFn() * emptyCells.length));
-  const targetCell = emptyCells[emptyIndex];
+  const targetCell = pickRandomCell(emptyCells, randomFn);
   targetCell.itemId = getRandomLowLevelItemId(randomFn);
   return targetCell;
 }
@@ -868,6 +872,7 @@ module.exports = {
   getBoardCell,
   getOccupiedBoardCells,
   getEmptyBoardCells,
+  pickRandomCell,
   spawnServerLowLevelItem,
   getPlayerForBoardAction,
   ensureBoardForPlayer,
