@@ -708,9 +708,6 @@ function handleBoardEnsure(ctx, store, now = Date.now(), randomFn = Math.random)
   if (!session) {
     return;
   }
-  if (!store[playerId]) {
-    store[playerId] = createDefaultPlayer(playerId);
-  }
   try {
     ctx.body = ensureBoardForPlayer(store, playerId, now, randomFn);
   } catch (error) {

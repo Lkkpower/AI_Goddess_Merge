@@ -1034,6 +1034,7 @@ test('board action handlers require matching player sessions', () => {
   server.handleBoardGenerate(mismatchCtx, store, 1781450000000);
   assert.equal(mismatchCtx.status, 403);
 
+  store[session.playerId] = server.createDefaultPlayer(session.playerId);
   const okCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
   okCtx.params = { playerId: session.playerId };
   server.handleBoardEnsure(okCtx, store, 1781450000000, () => 0);
@@ -1056,6 +1057,12 @@ test('board action handlers return stable bad request error codes', () => {
   server.handleBoardGenerate(generateCtx, store, 1781450000000, () => 0);
   assert.equal(generateCtx.status, 400);
   assert.deepEqual(generateCtx.body, { ok: false, error: 'BOARD_FULL' });
+
+  const missingPlayerCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
+  missingPlayerCtx.params = { playerId: session.playerId };
+  server.handleBoardEnsure(missingPlayerCtx, {}, 1781450000000, () => 0);
+  assert.equal(missingPlayerCtx.status, 400);
+  assert.deepEqual(missingPlayerCtx.body, { ok: false, error: 'PLAYER_NOT_FOUND' });
 
   const mergeCtx = createMockContext({ fromIndex: 0, toIndex: 99 }, { authorization: `Bearer ${session.sessionToken}` });
   mergeCtx.params = { playerId: session.playerId };
