@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const server = require('../server/server.js');
+const gameplayConfig = require('../server/gameplayConfig.js');
 
 test('createDefaultPlayer returns a complete player snapshot', () => {
   const player = server.createDefaultPlayer('demo_player', '游客');
@@ -1030,6 +1031,72 @@ function fullBoard(itemId = 1) {
   }
   return cells;
 }
+
+function readClientItemConfigFields() {
+  const clientConfigPath = path.join(__dirname, '..', 'assets', 'scripts', 'data', 'ItemConfig.ts');
+  const source = fs.readFileSync(clientConfigPath, 'utf8');
+  const objectPattern = /\{\s*id:\s*(\d+),[\s\S]*?level:\s*(\d+),[\s\S]*?nextId:\s*(\d+),[\s\S]*?score:\s*(\d+),[\s\S]*?coin:\s*(\d+)(?:,[\s\S]*?unlockSkinId:\s*(\d+))?[\s\S]*?\}/g;
+  const configs = new Map();
+  let match = objectPattern.exec(source);
+
+  while (match) {
+    configs.set(Number(match[1]), {
+      id: Number(match[1]),
+      level: Number(match[2]),
+      nextId: Number(match[3]),
+      score: Number(match[4]),
+      coin: Number(match[5]),
+      unlockSkinId: match[6] === undefined ? undefined : Number(match[6]),
+    });
+    match = objectPattern.exec(source);
+  }
+
+  return configs;
+}
+
+test('normalizeBoardCells preserves item positions by row and col coordinates', () => {
+  const board = [
+    { row: 4, col: 5, itemId: 9 },
+    { row: 0, col: 0, itemId: 2 },
+    { row: 99, col: 99, itemId: 20 },
+    { row: 1, col: 2, itemId: 'bad' },
+  ];
+
+  const normalized = server.normalizeBoardCells(board);
+
+  assert.equal(normalized.length, 30);
+  assert.deepEqual(normalized[0], { row: 0, col: 0, itemId: 2 });
+  assert.deepEqual(normalized[1 * 6 + 2], { row: 1, col: 2, itemId: null });
+  assert.deepEqual(normalized[29], { row: 4, col: 5, itemId: 9 });
+  assert.equal(normalized.filter((cell) => cell.itemId !== null).length, 2);
+});
+
+test('pickRandomCell selects a deterministic cell from candidates', () => {
+  const cells = [
+    { row: 0, col: 0, itemId: null },
+    { row: 0, col: 1, itemId: null },
+    { row: 0, col: 2, itemId: null },
+  ];
+
+  assert.deepEqual(server.pickRandomCell(cells, () => 0.7), cells[2]);
+});
+
+test('server gameplay item config stays in parity with client item config fields', () => {
+  const clientConfigs = readClientItemConfigFields();
+
+  assert.equal(clientConfigs.size, gameplayConfig.itemConfigs.length);
+
+  for (const serverItem of gameplayConfig.itemConfigs) {
+    assert.deepEqual(clientConfigs.get(serverItem.id), {
+      id: serverItem.id,
+      level: serverItem.level,
+      nextId: serverItem.nextId,
+      score: serverItem.score,
+      coin: serverItem.coin,
+      unlockSkinId: serverItem.unlockSkinId,
+    });
+  }
+});
 
 test('ensureBoardForPlayer creates exactly six occupied cells for an empty board', () => {
   const now = 1781450000000;

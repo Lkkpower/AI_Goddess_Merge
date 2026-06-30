@@ -156,15 +156,27 @@ function createEmptyBoardCells() {
 }
 
 function normalizeBoardCells(board) {
-  const source = Array.isArray(board) ? board : [];
-  return createEmptyBoardCells().map((defaultCell, index) => {
-    const cell = source[index];
-    return {
-      row: defaultCell.row,
-      col: defaultCell.col,
-      itemId: Number.isInteger(cell && cell.itemId) && cell.itemId > 0 ? cell.itemId : null,
-    };
+  const cells = createEmptyBoardCells();
+  if (!Array.isArray(board)) {
+    return cells;
+  }
+
+  board.forEach((cell) => {
+    if (!cell || typeof cell !== "object") {
+      return;
+    }
+    if (!Number.isInteger(cell.row) || !Number.isInteger(cell.col)) {
+      return;
+    }
+    if (cell.row < 0 || cell.row >= BOARD_ROWS || cell.col < 0 || cell.col >= BOARD_COLS) {
+      return;
+    }
+
+    const index = cell.row * BOARD_COLS + cell.col;
+    cells[index].itemId = Number.isInteger(cell.itemId) ? cell.itemId : null;
   });
+
+  return cells;
 }
 
 function getBoardCell(board, index) {
