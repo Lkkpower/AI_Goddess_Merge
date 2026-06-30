@@ -1035,18 +1035,19 @@ function fullBoard(itemId = 1) {
 function readClientItemConfigFields() {
   const clientConfigPath = path.join(__dirname, '..', 'assets', 'scripts', 'data', 'ItemConfig.ts');
   const source = fs.readFileSync(clientConfigPath, 'utf8');
-  const objectPattern = /\{\s*id:\s*(\d+),[\s\S]*?level:\s*(\d+),[\s\S]*?nextId:\s*(\d+),[\s\S]*?score:\s*(\d+),[\s\S]*?coin:\s*(\d+)(?:,[\s\S]*?unlockSkinId:\s*(\d+))?[\s\S]*?\}/g;
+  const objectPattern = /\{\s*id:\s*(\d+),[\s\S]*?name:\s*["']([^"']+)["'],[\s\S]*?level:\s*(\d+),[\s\S]*?nextId:\s*(\d+),[\s\S]*?score:\s*(\d+),[\s\S]*?coin:\s*(\d+)(?:,[\s\S]*?unlockSkinId:\s*(\d+))?[\s\S]*?\}/g;
   const configs = new Map();
   let match = objectPattern.exec(source);
 
   while (match) {
     configs.set(Number(match[1]), {
       id: Number(match[1]),
-      level: Number(match[2]),
-      nextId: Number(match[3]),
-      score: Number(match[4]),
-      coin: Number(match[5]),
-      unlockSkinId: match[6] === undefined ? undefined : Number(match[6]),
+      name: match[2],
+      level: Number(match[3]),
+      nextId: Number(match[4]),
+      score: Number(match[5]),
+      coin: Number(match[6]),
+      unlockSkinId: match[7] === undefined ? undefined : Number(match[7]),
     });
     match = objectPattern.exec(source);
   }
@@ -1089,6 +1090,7 @@ test('server gameplay item config stays in parity with client item config fields
   for (const serverItem of gameplayConfig.itemConfigs) {
     assert.deepEqual(clientConfigs.get(serverItem.id), {
       id: serverItem.id,
+      name: serverItem.name,
       level: serverItem.level,
       nextId: serverItem.nextId,
       score: serverItem.score,
