@@ -520,6 +520,19 @@ test('stage 3D storage manager accepts auth session expiry from server', () => {
   assert.match(storage, /sessionToken: string/);
 });
 
+test('stage 3F storage manager exposes authenticated remote board actions', () => {
+  const storage = read('assets/scripts/core/StorageManager.ts');
+
+  assert.match(storage, /ensureRemoteBoard\(playerId: string\): Promise<PlayerData \| null>/);
+  assert.match(storage, /generateRemoteItem\(playerId: string\): Promise<PlayerData \| null>/);
+  assert.match(storage, /mergeRemoteItems\(playerId: string, fromIndex: number, toIndex: number\): Promise<PlayerData \| null>/);
+  assert.match(storage, /`\/player\/\$\{playerId\}\/board\/ensure`/);
+  assert.match(storage, /`\/player\/\$\{playerId\}\/board\/generate`/);
+  assert.match(storage, /`\/player\/\$\{playerId\}\/board\/merge`/);
+  assert.match(storage, /body: JSON\.stringify\(\{ fromIndex, toIndex \}\)/);
+  assert.match(storage, /headers: this\.withAuthHeaders\(\{ "Content-Type": "application\/json" \}\)/);
+});
+
 test('stage 3D client does not contain platform app secrets', () => {
   const files = [
     'assets/scripts/core/StorageManager.ts',

@@ -133,6 +133,43 @@ class StorageManager {
         }
     }
 
+    async ensureRemoteBoard(playerId: string): Promise<PlayerData | null> {
+        try {
+            return await this.request(`/player/${playerId}/board/ensure`, {
+                method: "POST",
+                headers: this.withAuthHeaders({ "Content-Type": "application/json" }),
+            }) as PlayerData;
+        } catch (error) {
+            console.warn("[StorageManager] ensureRemoteBoard failed", error);
+            return null;
+        }
+    }
+
+    async generateRemoteItem(playerId: string): Promise<PlayerData | null> {
+        try {
+            return await this.request(`/player/${playerId}/board/generate`, {
+                method: "POST",
+                headers: this.withAuthHeaders({ "Content-Type": "application/json" }),
+            }) as PlayerData;
+        } catch (error) {
+            console.warn("[StorageManager] generateRemoteItem failed", error);
+            return null;
+        }
+    }
+
+    async mergeRemoteItems(playerId: string, fromIndex: number, toIndex: number): Promise<PlayerData | null> {
+        try {
+            return await this.request(`/player/${playerId}/board/merge`, {
+                method: "POST",
+                headers: this.withAuthHeaders({ "Content-Type": "application/json" }),
+                body: JSON.stringify({ fromIndex, toIndex }),
+            }) as PlayerData;
+        } catch (error) {
+            console.warn("[StorageManager] mergeRemoteItems failed", error);
+            return null;
+        }
+    }
+
     async submitLeaderboard(playerData: PlayerData): Promise<boolean> {
         return this.saveRemote(playerData);
     }
