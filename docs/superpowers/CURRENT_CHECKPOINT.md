@@ -151,6 +151,27 @@ Recommended next node:
 - Run the Cocos Creator preview checklist below.
 - Then choose the next Stage 3-G scope: full-save lockdown, remaining economy command migration, or production storage.
 
+## Next Session Handoff
+
+Start here next time:
+
+1. Confirm the repository is still on `master` at or after `679e291`.
+2. Run the automated baseline verification listed in `## Last Verification`.
+3. Run the Cocos browser preview checklist for Stage 3-F local fallback.
+4. If WeChat or Douyin preview is available with the backend running, verify authenticated board actions hit:
+   - `POST /player/:playerId/board/ensure`
+   - `POST /player/:playerId/board/generate`
+   - `POST /player/:playerId/board/merge`
+5. After preview, select one Stage 3-G scope and write a focused design/plan before code changes.
+
+Immediate Stage 3-G candidates:
+
+1. **Full-save lockdown**: stop platform clients from bypassing server-owned board and economy state through transitional full-player saves.
+2. **Remaining economy command migration**: move ad rewards, daily rewards, skin unlocks, and related score/coin mutations behind server-owned command endpoints.
+3. **Production storage hardening**: replace JSON-file persistence and in-memory/session-file assumptions with a production-ready store boundary.
+
+Recommended first Stage 3-G slice: **full-save lockdown**, because Stage 3-F now has server-authoritative board commands but still keeps `POST /player/:playerId` as a transitional compatibility path.
+
 ## Key Files
 
 Data and logic:
@@ -222,7 +243,9 @@ Known note:
 
 ## Git / Workspace State
 
-The repository now has commits for the Stage 2B-B spec, implementation plan, and implementation slices. Check `git status --short` before resuming; unrelated local editor output should not be reverted.
+Current recorded branch state after Stage 3-F handoff update: latest `master` commit is `docs: add stage 3g handoff notes`.
+
+The repository is expected to be on `master` with a clean working tree. Check `git status --short` before resuming; unrelated local editor output should not be reverted.
 
 ## Suggested Next Development Stage
 
