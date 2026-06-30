@@ -1018,6 +1018,52 @@ test('handleAdRewardClaim requires a matching player session', () => {
   assert.equal(okCtx.body.rewardType, 'coin_bonus');
 });
 
+test('board action handlers require matching player sessions', () => {
+  server.sessions.clear();
+  const store = {};
+  const session = createAuthorizedSession('wechat', 'board-owner');
+  const otherSession = createAuthorizedSession('wechat', 'board-other');
+
+  const missingCtx = createMockContext({});
+  missingCtx.params = { playerId: session.playerId };
+  server.handleBoardEnsure(missingCtx, store, 1781450000000);
+  assert.equal(missingCtx.status, 401);
+
+  const mismatchCtx = createMockContext({}, { authorization: `Bearer ${otherSession.sessionToken}` });
+  mismatchCtx.params = { playerId: session.playerId };
+  server.handleBoardGenerate(mismatchCtx, store, 1781450000000);
+  assert.equal(mismatchCtx.status, 403);
+
+  const okCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
+  okCtx.params = { playerId: session.playerId };
+  server.handleBoardEnsure(okCtx, store, 1781450000000, () => 0);
+  assert.equal(okCtx.status, 200);
+  assert.equal(okCtx.body.playerId, session.playerId);
+  assert.equal(occupiedCells(okCtx.body.board).length, 6);
+});
+
+test('board action handlers return stable bad request error codes', () => {
+  server.sessions.clear();
+  const store = {};
+  const session = createAuthorizedSession('web', 'board-errors');
+  store[session.playerId] = {
+    ...server.createDefaultPlayer(session.playerId),
+    board: fullBoard(1),
+  };
+
+  const generateCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
+  generateCtx.params = { playerId: session.playerId };
+  server.handleBoardGenerate(generateCtx, store, 1781450000000, () => 0);
+  assert.equal(generateCtx.status, 400);
+  assert.deepEqual(generateCtx.body, { ok: false, error: 'BOARD_FULL' });
+
+  const mergeCtx = createMockContext({ fromIndex: 0, toIndex: 99 }, { authorization: `Bearer ${session.sessionToken}` });
+  mergeCtx.params = { playerId: session.playerId };
+  server.handleBoardMerge(mergeCtx, store, 1781450000000);
+  assert.equal(mergeCtx.status, 400);
+  assert.deepEqual(mergeCtx.body, { ok: false, error: 'INVALID_CELL_INDEX' });
+});
+
 function occupiedCells(board) {
   return board.filter((cell) => cell.itemId !== null);
 }

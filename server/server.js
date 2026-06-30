@@ -702,6 +702,48 @@ function handleAdRewardClaim(ctx, store, now = Date.now()) {
   }
 }
 
+function handleBoardEnsure(ctx, store, now = Date.now(), randomFn = Math.random) {
+  const { playerId } = ctx.params;
+  const session = requirePlayerSession(ctx, playerId, now);
+  if (!session) {
+    return;
+  }
+  if (!store[playerId]) {
+    store[playerId] = createDefaultPlayer(playerId);
+  }
+  try {
+    ctx.body = ensureBoardForPlayer(store, playerId, now, randomFn);
+  } catch (error) {
+    sendBadRequest(ctx, error.message);
+  }
+}
+
+function handleBoardGenerate(ctx, store, now = Date.now(), randomFn = Math.random) {
+  const { playerId } = ctx.params;
+  const session = requirePlayerSession(ctx, playerId, now);
+  if (!session) {
+    return;
+  }
+  try {
+    ctx.body = generateBoardItemForPlayer(store, playerId, now, randomFn);
+  } catch (error) {
+    sendBadRequest(ctx, error.message);
+  }
+}
+
+function handleBoardMerge(ctx, store, now = Date.now()) {
+  const { playerId } = ctx.params;
+  const session = requirePlayerSession(ctx, playerId, now);
+  if (!session) {
+    return;
+  }
+  try {
+    ctx.body = mergeBoardItemsForPlayer(store, playerId, ctx.request.body || {}, now);
+  } catch (error) {
+    sendBadRequest(ctx, error.message);
+  }
+}
+
 function getLeaderboard(store) {
   return Object.values(store)
     .map((player) => ({
@@ -841,6 +883,30 @@ function createApp() {
     }
   });
 
+  router.post("/player/:playerId/board/ensure", (ctx) => {
+    const store = readPlayerStore();
+    handleBoardEnsure(ctx, store);
+    if (ctx.status < 400) {
+      writePlayerStore(store);
+    }
+  });
+
+  router.post("/player/:playerId/board/generate", (ctx) => {
+    const store = readPlayerStore();
+    handleBoardGenerate(ctx, store);
+    if (ctx.status < 400) {
+      writePlayerStore(store);
+    }
+  });
+
+  router.post("/player/:playerId/board/merge", (ctx) => {
+    const store = readPlayerStore();
+    handleBoardMerge(ctx, store);
+    if (ctx.status < 400) {
+      writePlayerStore(store);
+    }
+  });
+
   router.get("/leaderboard", (ctx) => {
     const store = readPlayerStore();
     ctx.body = getLeaderboard(store);
@@ -929,6 +995,9 @@ module.exports = {
   handlePlayerLoad,
   handlePlayerSave,
   handleAdRewardClaim,
+  handleBoardEnsure,
+  handleBoardGenerate,
+  handleBoardMerge,
   normalizeAdRewardClientContext,
   claimAdRewardForPlayer,
   sendBadRequest,
