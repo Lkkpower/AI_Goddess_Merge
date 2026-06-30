@@ -1016,3 +1016,132 @@ test('handleAdRewardClaim requires a matching player session', () => {
   assert.equal(okCtx.body.ok, true);
   assert.equal(okCtx.body.rewardType, 'coin_bonus');
 });
+
+function occupiedCells(board) {
+  return board.filter((cell) => cell.itemId !== null);
+}
+
+function fullBoard(itemId = 1) {
+  const cells = [];
+  for (let row = 0; row < 5; row += 1) {
+    for (let col = 0; col < 6; col += 1) {
+      cells.push({ row, col, itemId });
+    }
+  }
+  return cells;
+}
+
+test('ensureBoardForPlayer creates exactly six occupied cells for an empty board', () => {
+  const now = 1781450000000;
+  const store = {
+    board_owner: server.createDefaultPlayer('board_owner', 'Board Owner'),
+  };
+
+  const player = server.ensureBoardForPlayer(store, 'board_owner', now, () => 0);
+
+  assert.equal(player.playerId, 'board_owner');
+  assert.equal(player.board.length, 30);
+  assert.equal(occupiedCells(player.board).length, 6);
+  assert.equal(occupiedCells(player.board).every((cell) => cell.itemId === 1), true);
+  assert.equal(player.lastSaveTime, now);
+});
+
+test('ensureBoardForPlayer preserves an existing occupied board', () => {
+  const now = 1781450000000;
+  const existingBoard = fullBoard(null);
+  existingBoard[7] = { row: 1, col: 1, itemId: 4 };
+  const store = {
+    board_owner: {
+      ...server.createDefaultPlayer('board_owner'),
+      board: existingBoard,
+      lastSaveTime: 123,
+    },
+  };
+
+  const player = server.ensureBoardForPlayer(store, 'board_owner', now, () => 0);
+
+  assert.equal(occupiedCells(player.board).length, 1);
+  assert.equal(player.board[7].itemId, 4);
+  assert.equal(player.lastSaveTime, 123);
+});
+
+test('generateBoardItemForPlayer writes one low-level item into an empty cell', () => {
+  const now = 1781450000000;
+  const store = {
+    generator: {
+      ...server.createDefaultPlayer('generator'),
+      board: fullBoard(null),
+    },
+  };
+
+  const player = server.generateBoardItemForPlayer(store, 'generator', now, () => 0);
+
+  assert.equal(player.board.length, 30);
+  assert.equal(occupiedCells(player.board).length, 1);
+  assert.equal(occupiedCells(player.board)[0].itemId, 1);
+  assert.equal(player.lastSaveTime, now);
+});
+
+test('generateBoardItemForPlayer fails with BOARD_FULL when no cell is empty', () => {
+  const store = {
+    full_player: {
+      ...server.createDefaultPlayer('full_player'),
+      board: fullBoard(1),
+    },
+  };
+
+  assert.throws(
+    () => server.generateBoardItemForPlayer(store, 'full_player', 1781450000000, () => 0),
+    /BOARD_FULL/
+  );
+});
+
+test('mergeBoardItemsForPlayer resolves merge rewards and skin unlocks', () => {
+  const now = 1781450000000;
+  const board = fullBoard(null);
+  board[0] = { row: 0, col: 0, itemId: 3 };
+  board[1] = { row: 0, col: 1, itemId: 3 };
+  const store = {
+    merge_player: {
+      ...server.createDefaultPlayer('merge_player'),
+      coins: 10,
+      score: 20,
+      highestItemLevel: 2,
+      board,
+    },
+  };
+
+  const player = server.mergeBoardItemsForPlayer(store, 'merge_player', {
+    fromIndex: 0,
+    toIndex: 1,
+  }, now);
+
+  assert.equal(player.board[0].itemId, null);
+  assert.equal(player.board[1].itemId, 4);
+  assert.equal(player.coins, 28);
+  assert.equal(player.score, 65);
+  assert.equal(player.highestItemLevel, 4);
+  assert.deepEqual(player.unlockedSkins, [1]);
+  assert.equal(player.lastSaveTime, now);
+});
+
+test('mergeBoardItemsForPlayer rejects invalid merge requests with stable codes', () => {
+  const board = fullBoard(null);
+  board[0] = { row: 0, col: 0, itemId: 1 };
+  board[1] = { row: 0, col: 1, itemId: 2 };
+  board[2] = { row: 0, col: 2, itemId: 20 };
+  board[3] = { row: 0, col: 3, itemId: 20 };
+  const store = {
+    merge_player: {
+      ...server.createDefaultPlayer('merge_player'),
+      board,
+    },
+  };
+
+  assert.throws(() => server.mergeBoardItemsForPlayer(store, 'merge_player', { fromIndex: -1, toIndex: 1 }), /INVALID_CELL_INDEX/);
+  assert.throws(() => server.mergeBoardItemsForPlayer(store, 'merge_player', { fromIndex: 4, toIndex: 1 }), /EMPTY_SOURCE_CELL/);
+  assert.throws(() => server.mergeBoardItemsForPlayer(store, 'merge_player', { fromIndex: 0, toIndex: 4 }), /EMPTY_TARGET_CELL/);
+  assert.throws(() => server.mergeBoardItemsForPlayer(store, 'merge_player', { fromIndex: 0, toIndex: 1 }), /ITEM_MISMATCH/);
+  assert.throws(() => server.mergeBoardItemsForPlayer(store, 'merge_player', { fromIndex: 2, toIndex: 3 }), /ITEM_MAX_LEVEL/);
+  assert.throws(() => server.ensureBoardForPlayer({}, 'missing_player'), /PLAYER_NOT_FOUND/);
+});

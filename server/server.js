@@ -4,6 +4,13 @@ const bodyParser = require("koa-bodyparser");
 const cors = require("@koa/cors");
 const fs = require("fs");
 const path = require("path");
+const {
+  BOARD_ROWS,
+  BOARD_COLS,
+  BOARD_CELL_COUNT,
+  getItemConfigById,
+  getRandomLowLevelItemId,
+} = require("./gameplayConfig");
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
@@ -130,6 +137,128 @@ function mergePlayerSaveData(existingPlayer, incomingData, now = Date.now()) {
       : incomingData.lastAdRewardClientContext ?? defaultPlayer.lastAdRewardClientContext,
     lastSaveTime: now,
   };
+}
+
+function createBoardError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
+function createEmptyBoardCells() {
+  const cells = [];
+  for (let row = 0; row < BOARD_ROWS; row += 1) {
+    for (let col = 0; col < BOARD_COLS; col += 1) {
+      cells.push({ row, col, itemId: null });
+    }
+  }
+  return cells;
+}
+
+function normalizeBoardCells(board) {
+  const source = Array.isArray(board) ? board : [];
+  return createEmptyBoardCells().map((defaultCell, index) => {
+    const cell = source[index];
+    return {
+      row: defaultCell.row,
+      col: defaultCell.col,
+      itemId: Number.isInteger(cell && cell.itemId) && cell.itemId > 0 ? cell.itemId : null,
+    };
+  });
+}
+
+function getBoardCell(board, index) {
+  if (!Number.isInteger(index) || index < 0 || index >= BOARD_CELL_COUNT) {
+    throw createBoardError("INVALID_CELL_INDEX");
+  }
+  return board[index];
+}
+
+function getOccupiedBoardCells(board) {
+  return board.filter((cell) => cell.itemId !== null);
+}
+
+function getEmptyBoardCells(board) {
+  return board.filter((cell) => cell.itemId === null);
+}
+
+function spawnServerLowLevelItem(board, randomFn = Math.random) {
+  const emptyCells = getEmptyBoardCells(board);
+  if (emptyCells.length === 0) {
+    throw createBoardError("BOARD_FULL");
+  }
+
+  const emptyIndex = Math.min(emptyCells.length - 1, Math.floor(randomFn() * emptyCells.length));
+  const targetCell = emptyCells[emptyIndex];
+  targetCell.itemId = getRandomLowLevelItemId(randomFn);
+  return targetCell;
+}
+
+function getPlayerForBoardAction(store, playerId) {
+  const player = store[playerId];
+  if (!player) {
+    throw createBoardError("PLAYER_NOT_FOUND");
+  }
+  return player;
+}
+
+function ensureBoardForPlayer(store, playerId, now = Date.now(), randomFn = Math.random) {
+  const player = getPlayerForBoardAction(store, playerId);
+  player.board = normalizeBoardCells(player.board);
+
+  if (getOccupiedBoardCells(player.board).length === 0) {
+    for (let index = 0; index < 6; index += 1) {
+      spawnServerLowLevelItem(player.board, randomFn);
+    }
+    player.lastSaveTime = now;
+  }
+
+  store[playerId] = player;
+  return player;
+}
+
+function generateBoardItemForPlayer(store, playerId, now = Date.now(), randomFn = Math.random) {
+  const player = getPlayerForBoardAction(store, playerId);
+  player.board = normalizeBoardCells(player.board);
+  spawnServerLowLevelItem(player.board, randomFn);
+  player.lastSaveTime = now;
+  store[playerId] = player;
+  return player;
+}
+
+function mergeBoardItemsForPlayer(store, playerId, move, now = Date.now()) {
+  const player = getPlayerForBoardAction(store, playerId);
+  player.board = normalizeBoardCells(player.board);
+
+  const fromCell = getBoardCell(player.board, move && move.fromIndex);
+  const toCell = getBoardCell(player.board, move && move.toIndex);
+  if (fromCell.itemId === null) {
+    throw createBoardError("EMPTY_SOURCE_CELL");
+  }
+  if (toCell.itemId === null) {
+    throw createBoardError("EMPTY_TARGET_CELL");
+  }
+  if (fromCell.itemId !== toCell.itemId) {
+    throw createBoardError("ITEM_MISMATCH");
+  }
+
+  const sourceConfig = getItemConfigById(fromCell.itemId);
+  if (!sourceConfig || !sourceConfig.nextId) {
+    throw createBoardError("ITEM_MAX_LEVEL");
+  }
+
+  const mergedConfig = getItemConfigById(sourceConfig.nextId);
+  fromCell.itemId = null;
+  toCell.itemId = mergedConfig.id;
+  player.coins = (Number(player.coins) || 0) + mergedConfig.coin;
+  player.score = (Number(player.score) || 0) + mergedConfig.score;
+  player.highestItemLevel = Math.max(Number(player.highestItemLevel) || 0, mergedConfig.level);
+  if (mergedConfig.unlockSkinId && !player.unlockedSkins.includes(mergedConfig.unlockSkinId)) {
+    player.unlockedSkins = [...player.unlockedSkins, mergedConfig.unlockSkinId];
+  }
+  player.lastSaveTime = now;
+  store[playerId] = player;
+  return player;
 }
 
 function normalizeRequiredString(value, fieldName) {
@@ -733,6 +862,17 @@ module.exports = {
   createDefaultPlayer,
   validatePlayerData,
   mergePlayerSaveData,
+  createBoardError,
+  createEmptyBoardCells,
+  normalizeBoardCells,
+  getBoardCell,
+  getOccupiedBoardCells,
+  getEmptyBoardCells,
+  spawnServerLowLevelItem,
+  getPlayerForBoardAction,
+  ensureBoardForPlayer,
+  generateBoardItemForPlayer,
+  mergeBoardItemsForPlayer,
   getLeaderboard,
   getRewardValue,
   ALLOWED_REWARD_TYPES,
