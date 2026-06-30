@@ -465,7 +465,13 @@ test('stage 3B game manager authenticates before selecting local player data', (
   assert.match(gameManager, /onLoad\(\): void/);
   assert.match(gameManager, /this\.initGameAsync\(\)/);
   assert.match(gameManager, /private async initGameAsync\(\): Promise<void>/);
-  assert.match(gameManager, /const playerId = await this\.resolvePlayerId\(\)/);
+  assert.match(gameManager, /const login = await platformManager\.login\(\)/);
+  assert.match(gameManager, /const auth = await storageManager\.loginRemote\(\{/);
+  assert.match(gameManager, /platform: login\.platform/);
+  assert.match(gameManager, /code: login\.code/);
+  assert.match(gameManager, /if \(auth && auth\.ok && auth\.playerId\)/);
+  assert.match(gameManager, /this\.initGame\(auth\.playerId\)/);
+  assert.match(gameManager, /this\.initGame\(login\.playerId \|\| this\.fallbackPlayerId\)/);
   assert.match(gameManager, /private async resolvePlayerId\(\): Promise<string>/);
   assert.match(gameManager, /const login = await platformManager\.login\(\)/);
   assert.match(gameManager, /const auth = await storageManager\.loginRemote\(\{/);
@@ -531,6 +537,26 @@ test('stage 3F storage manager exposes authenticated remote board actions', () =
   assert.match(storage, /`\/player\/\$\{playerId\}\/board\/merge`/);
   assert.match(storage, /body: JSON\.stringify\(\{ fromIndex, toIndex \}\)/);
   assert.match(storage, /headers: this\.withAuthHeaders\(\{ "Content-Type": "application\/json" \}\)/);
+});
+
+test('stage 3F game manager routes platform board actions through remote authority', () => {
+  const gameManager = read('assets/scripts/core/GameManager.ts');
+  const mainView = read('assets/scripts/ui/MainView.ts');
+
+  assert.match(gameManager, /private remoteAuthoritative = false/);
+  assert.match(gameManager, /private isPlatformAuthoritative\(\): boolean/);
+  assert.match(gameManager, /platformManager\.detectPlatform\(\) !== "web"/);
+  assert.match(gameManager, /storageManager\.getSessionToken\(\)/);
+  assert.match(gameManager, /storageManager\.ensureRemoteBoard\(auth\.playerId\)/);
+  assert.match(gameManager, /async generateItem\(\): Promise<boolean>/);
+  assert.match(gameManager, /storageManager\.generateRemoteItem\(data\.playerId\)/);
+  assert.match(gameManager, /async mergeItems\(fromRow: number, fromCol: number, toRow: number, toCol: number\)/);
+  assert.match(gameManager, /storageManager\.mergeRemoteItems\(data\.playerId, fromIndex, toIndex\)/);
+  assert.match(gameManager, /private applyRemotePlayerData\(remoteData: PlayerData\): void/);
+  assert.match(mainView, /private async onGenerateClicked\(\): Promise<void>/);
+  assert.match(mainView, /await this\.gameManager\.generateItem\(\)/);
+  assert.match(mainView, /private async onItemDragEnd/);
+  assert.match(mainView, /await this\.gameManager\.mergeItems\(payload\.fromRow, payload\.fromCol, target\.row, target\.col\)/);
 });
 
 test('stage 3D client does not contain platform app secrets', () => {

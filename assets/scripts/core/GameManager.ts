@@ -17,6 +17,11 @@ export interface AdRewardClaimResult {
     value: number;
 }
 
+export interface MergeActionResult {
+    ok: boolean;
+    resultItemId: number;
+}
+
 @ccclass("GameManager")
 export class GameManager extends Component {
     static instance: GameManager | null = null;
@@ -25,6 +30,7 @@ export class GameManager extends Component {
     private playerData: PlayerData | null = null;
     private initialized = false;
     private readonly fallbackPlayerId = "demo_player";
+    private remoteAuthoritative = false;
 
     onLoad(): void {
         GameManager.instance = this;
@@ -43,8 +49,28 @@ export class GameManager extends Component {
     }
 
     private async initGameAsync(): Promise<void> {
-        const playerId = await this.resolvePlayerId();
-        this.initGame(playerId);
+        const login = await platformManager.login();
+        const auth = await storageManager.loginRemote({
+            platform: login.platform,
+            code: login.code,
+        });
+
+        if (auth && auth.ok && auth.playerId) {
+            if (auth.platform !== "web") {
+                const remoteData = await storageManager.ensureRemoteBoard(auth.playerId);
+                if (remoteData) {
+                    this.remoteAuthoritative = true;
+                    this.applyRemotePlayerData(remoteData);
+                    this.initialized = true;
+                    eventManager.emit(GameEvents.GAME_INIT, this.getPlayerData());
+                    return;
+                }
+            }
+            this.initGame(auth.playerId);
+            return;
+        }
+
+        this.initGame(login.playerId || this.fallbackPlayerId);
     }
 
     initGame(playerId: string = "demo_player"): void {
@@ -91,6 +117,23 @@ export class GameManager extends Component {
         return this.playerData;
     }
 
+    private applyRemotePlayerData(remoteData: PlayerData): void {
+        this.playerData = normalizePlayerData(remoteData);
+        this.boardManager.loadBoard(this.playerData.board);
+        eventManager.emit(GameEvents.COINS_CHANGED, this.playerData.coins);
+        eventManager.emit(GameEvents.SCORE_CHANGED, this.playerData.score);
+    }
+
+    private isPlatformAuthoritative(): boolean {
+        return this.remoteAuthoritative
+            && platformManager.detectPlatform() !== "web"
+            && Boolean(storageManager.getSessionToken());
+    }
+
+    private toBoardIndex(row: number, col: number): number {
+        return row * this.boardManager.cols + col;
+    }
+
     addCoins(amount: number): void {
         const data = this.getPlayerData();
         data.coins += amount;
@@ -131,6 +174,45 @@ export class GameManager extends Component {
             console.warn("[GameManager] load leaderboard failed", error);
             return createLocalLeaderboard(data);
         }
+    }
+
+    async generateItem(): Promise<boolean> {
+        const data = this.getPlayerData();
+        if (this.isPlatformAuthoritative()) {
+            const remoteData = await storageManager.generateRemoteItem(data.playerId);
+            if (!remoteData) {
+                return false;
+            }
+            this.applyRemotePlayerData(remoteData);
+            return true;
+        }
+
+        const ok = this.boardManager.spawnRandomItem();
+        if (ok) {
+            this.saveGame();
+        }
+        return ok;
+    }
+
+    async mergeItems(fromRow: number, fromCol: number, toRow: number, toCol: number): Promise<MergeActionResult> {
+        const data = this.getPlayerData();
+        if (this.isPlatformAuthoritative()) {
+            const fromIndex = this.toBoardIndex(fromRow, fromCol);
+            const toIndex = this.toBoardIndex(toRow, toCol);
+            const remoteData = await storageManager.mergeRemoteItems(data.playerId, fromIndex, toIndex);
+            if (!remoteData) {
+                return { ok: false, resultItemId: 0 };
+            }
+            const resultCell = remoteData.board[toIndex];
+            this.applyRemotePlayerData(remoteData);
+            return { ok: true, resultItemId: resultCell?.itemId ?? 0 };
+        }
+
+        const result = this.boardManager.merge(fromRow, fromCol, toRow, toCol);
+        return {
+            ok: Boolean(result),
+            resultItemId: result?.resultItemId ?? 0,
+        };
     }
 
     claimAdReward(rewardType: AdRewardType): AdRewardClaimResult {

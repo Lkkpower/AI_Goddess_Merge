@@ -219,15 +219,16 @@ export class MainView extends Component {
         this.tutorialPanel.active = true;
     }
 
-    private onGenerateClicked(): void {
+    private async onGenerateClicked(): Promise<void> {
         audioManager.playClick();
         if (!this.gameManager) {
             return;
         }
-        const ok = this.gameManager.boardManager.spawnRandomItem();
+        const ok = await this.gameManager.generateItem();
         if (ok) {
+            this.refreshPlayerInfo();
+            this.refreshBoard();
             this.setTip("生成了一件新服装");
-            this.gameManager.saveGame();
             return;
         }
         audioManager.playFail();
@@ -386,7 +387,7 @@ export class MainView extends Component {
         this.setTip("衣橱已满，可以看广告清理低级服装");
     }
 
-    private onItemDragEnd(payload: { fromRow: number; fromCol: number; worldPosition: Vec3 }): void {
+    private async onItemDragEnd(payload: { fromRow: number; fromCol: number; worldPosition: Vec3 }): Promise<void> {
         if (!this.gameManager || !this.boardRoot) {
             return;
         }
@@ -398,8 +399,8 @@ export class MainView extends Component {
             return;
         }
 
-        const result = this.gameManager.boardManager.merge(payload.fromRow, payload.fromCol, target.row, target.col);
-        if (!result) {
+        const result = await this.gameManager.mergeItems(payload.fromRow, payload.fromCol, target.row, target.col);
+        if (!result.ok) {
             audioManager.playFail();
             this.setTip("不同服装不能合成");
             this.refreshBoard();
@@ -407,6 +408,9 @@ export class MainView extends Component {
         }
 
         const config = getItemConfigById(result.resultItemId);
+        this.refreshPlayerInfo();
+        this.refreshSkinView();
+        this.refreshBoard();
         this.setTip(`获得 ${config?.name ?? "新服装"}`);
     }
 
