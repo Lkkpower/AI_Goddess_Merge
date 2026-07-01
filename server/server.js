@@ -704,7 +704,9 @@ function handlePlayerSave(ctx, store, now = Date.now()) {
     return;
   }
 
-  const data = mergePlayerSaveData(store[playerId], incomingData, now);
+  const data = isPlatformFullSaveLocked(session)
+    ? mergePlatformLockedPlayerSaveData(store[playerId], incomingData, now)
+    : mergePlayerSaveData(store[playerId], incomingData, now);
   store[playerId] = data;
   ctx.body = {
     ok: true,

@@ -1062,14 +1062,17 @@ test('handlePlayerSave rejects missing or mismatched sessions before saving', ()
   assert.equal(store[saveData.playerId], undefined);
 });
 
-test('handlePlayerSave writes player data with a matching session', () => {
+test('handlePlayerSave keeps broad full-save compatibility for web sessions', () => {
   server.sessions.clear();
   const store = {};
-  const session = createAuthorizedSession('wechat', 'owner');
+  const session = createAuthorizedSession('web', 'owner');
   const saveData = {
-    ...server.createDefaultPlayer(session.playerId, 'Owner'),
+    ...server.createDefaultPlayer(session.playerId, 'Web Owner'),
+    board: fullBoard(2),
     coins: 88,
     score: 120,
+    highestItemLevel: 4,
+    unlockedSkins: [1],
   };
   const ctx = createMockContext(saveData, { authorization: `Bearer ${session.sessionToken}` });
   ctx.params = { playerId: session.playerId };
@@ -1080,6 +1083,115 @@ test('handlePlayerSave writes player data with a matching session', () => {
   assert.deepEqual(ctx.body, { ok: true, playerId: session.playerId });
   assert.equal(store[session.playerId].coins, 88);
   assert.equal(store[session.playerId].score, 120);
+  assert.equal(store[session.playerId].highestItemLevel, 4);
+  assert.deepEqual(store[session.playerId].unlockedSkins, [1]);
+  assert.deepEqual(store[session.playerId].board, saveData.board);
+});
+
+test('handlePlayerSave locks server-owned fields for platform sessions', () => {
+  server.sessions.clear();
+  const session = createAuthorizedSession('wechat', 'owner');
+  const now = 1781450000000;
+  const existingBoard = fullBoard(null);
+  existingBoard[0] = { row: 0, col: 0, itemId: 5 };
+  const store = {
+    [session.playerId]: {
+      ...server.createDefaultPlayer(session.playerId, 'Server Owner'),
+      board: existingBoard,
+      coins: 310,
+      score: 620,
+      highestItemLevel: 7,
+      unlockedSkins: [1, 2],
+      adWatchCount: 3,
+      lastAdRewardTime: now - 30000,
+      lastAdRewardType: 'coin_bonus',
+      lastAdRewardClientContext: {
+        clientRewardValue: 120,
+        clientCoins: 310,
+        clientScore: 620,
+        clientHighestItemLevel: 7,
+      },
+      lastDailyRewardDate: '2026-06-30',
+      tutorialCompleted: false,
+    },
+  };
+  const saveData = {
+    ...server.createDefaultPlayer(session.playerId, 'Client Owner'),
+    board: fullBoard(9),
+    coins: 9999,
+    score: 9999,
+    highestItemLevel: 20,
+    unlockedSkins: [7],
+    adWatchCount: 99,
+    lastAdRewardTime: now + 1,
+    lastAdRewardType: 'high_level_item',
+    lastAdRewardClientContext: {
+      clientRewardValue: 4,
+      clientCoins: 9999,
+      clientScore: 9999,
+      clientHighestItemLevel: 20,
+    },
+    lastDailyRewardDate: '2026-07-01',
+    tutorialCompleted: true,
+  };
+  const ctx = createMockContext(saveData, { authorization: `Bearer ${session.sessionToken}` });
+  ctx.params = { playerId: session.playerId };
+
+  server.handlePlayerSave(ctx, store, now);
+
+  assert.equal(ctx.status, 200);
+  assert.deepEqual(ctx.body, { ok: true, playerId: session.playerId });
+  assert.equal(store[session.playerId].nickname, 'Client Owner');
+  assert.deepEqual(store[session.playerId].board, existingBoard);
+  assert.equal(store[session.playerId].coins, 310);
+  assert.equal(store[session.playerId].score, 620);
+  assert.equal(store[session.playerId].highestItemLevel, 7);
+  assert.deepEqual(store[session.playerId].unlockedSkins, [1, 2]);
+  assert.equal(store[session.playerId].adWatchCount, 3);
+  assert.equal(store[session.playerId].lastAdRewardTime, now - 30000);
+  assert.equal(store[session.playerId].lastAdRewardType, 'coin_bonus');
+  assert.deepEqual(store[session.playerId].lastAdRewardClientContext, {
+    clientRewardValue: 120,
+    clientCoins: 310,
+    clientScore: 620,
+    clientHighestItemLevel: 7,
+  });
+  assert.equal(store[session.playerId].lastDailyRewardDate, '2026-07-01');
+  assert.equal(store[session.playerId].tutorialCompleted, true);
+  assert.equal(store[session.playerId].lastSaveTime, now);
+});
+
+test('handlePlayerSave creates locked defaults for first platform full save', () => {
+  server.sessions.clear();
+  const session = createAuthorizedSession('douyin', 'fresh');
+  const saveData = {
+    ...server.createDefaultPlayer(session.playerId, 'Fresh Client'),
+    board: fullBoard(8),
+    coins: 8888,
+    score: 7777,
+    highestItemLevel: 18,
+    unlockedSkins: [1, 2, 3, 4, 5, 6],
+    adWatchCount: 6,
+    lastDailyRewardDate: '2026-07-01',
+    tutorialCompleted: true,
+  };
+  const store = {};
+  const ctx = createMockContext(saveData, { authorization: `Bearer ${session.sessionToken}` });
+  ctx.params = { playerId: session.playerId };
+
+  server.handlePlayerSave(ctx, store, 1781450000000);
+
+  assert.equal(ctx.status, 200);
+  assert.deepEqual(ctx.body, { ok: true, playerId: session.playerId });
+  assert.equal(store[session.playerId].nickname, 'Fresh Client');
+  assert.deepEqual(store[session.playerId].board, []);
+  assert.equal(store[session.playerId].coins, 0);
+  assert.equal(store[session.playerId].score, 0);
+  assert.equal(store[session.playerId].highestItemLevel, 0);
+  assert.deepEqual(store[session.playerId].unlockedSkins, []);
+  assert.equal(store[session.playerId].adWatchCount, 0);
+  assert.equal(store[session.playerId].lastDailyRewardDate, '2026-07-01');
+  assert.equal(store[session.playerId].tutorialCompleted, true);
 });
 
 test('handlePlayerLoad remains public without token and rejects invalid token when supplied', () => {
