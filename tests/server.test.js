@@ -180,6 +180,109 @@ test('mergePlayerSaveData prevents stale saves from rolling back adWatchCount', 
   assert.equal(merged.adWatchCount, 3);
 });
 
+test('isPlatformFullSaveLocked locks only non-web platform sessions', () => {
+  assert.equal(server.isPlatformFullSaveLocked({ platform: 'web' }), false);
+  assert.equal(server.isPlatformFullSaveLocked({ platform: 'wechat' }), true);
+  assert.equal(server.isPlatformFullSaveLocked({ platform: 'douyin' }), true);
+});
+
+test('mergePlatformLockedPlayerSaveData preserves server-owned fields and accepts compatibility fields', () => {
+  const now = 1781450000000;
+  const existing = {
+    ...server.createDefaultPlayer('locked_player', 'Server Name'),
+    board: fullBoard(null),
+    coins: 320,
+    score: 640,
+    highestItemLevel: 8,
+    unlockedSkins: [1, 3],
+    adWatchCount: 4,
+    lastAdRewardTime: now - 30000,
+    lastAdRewardType: 'coin_bonus',
+    lastAdRewardClientContext: {
+      clientRewardValue: 120,
+      clientCoins: 999,
+      clientScore: 888,
+      clientHighestItemLevel: 7,
+    },
+    lastDailyRewardDate: '2026-06-30',
+    tutorialCompleted: false,
+  };
+  existing.board[0] = { row: 0, col: 0, itemId: 4 };
+  const incoming = {
+    ...server.createDefaultPlayer('locked_player', 'Client Name'),
+    board: fullBoard(9),
+    coins: 9999,
+    score: 9999,
+    highestItemLevel: 20,
+    unlockedSkins: [7],
+    adWatchCount: 99,
+    lastAdRewardTime: now + 1,
+    lastAdRewardType: 'high_level_item',
+    lastAdRewardClientContext: {
+      clientRewardValue: 4,
+      clientCoins: 9999,
+      clientScore: 9999,
+      clientHighestItemLevel: 20,
+    },
+    lastDailyRewardDate: '2026-07-01',
+    tutorialCompleted: true,
+  };
+
+  const merged = server.mergePlatformLockedPlayerSaveData(existing, incoming, now);
+
+  assert.equal(merged.playerId, 'locked_player');
+  assert.equal(merged.nickname, 'Client Name');
+  assert.deepEqual(merged.board, existing.board);
+  assert.equal(merged.coins, 320);
+  assert.equal(merged.score, 640);
+  assert.equal(merged.highestItemLevel, 8);
+  assert.deepEqual(merged.unlockedSkins, [1, 3]);
+  assert.equal(merged.adWatchCount, 4);
+  assert.equal(merged.lastAdRewardTime, now - 30000);
+  assert.equal(merged.lastAdRewardType, 'coin_bonus');
+  assert.deepEqual(merged.lastAdRewardClientContext, {
+    clientRewardValue: 120,
+    clientCoins: 999,
+    clientScore: 888,
+    clientHighestItemLevel: 7,
+  });
+  assert.equal(merged.lastDailyRewardDate, '2026-07-01');
+  assert.equal(merged.tutorialCompleted, true);
+  assert.equal(merged.lastSaveTime, now);
+});
+
+test('mergePlatformLockedPlayerSaveData creates a locked default snapshot when no server data exists', () => {
+  const now = 1781450000000;
+  const incoming = {
+    ...server.createDefaultPlayer('new_locked_player', 'New Client'),
+    board: fullBoard(6),
+    coins: 5000,
+    score: 6000,
+    highestItemLevel: 12,
+    unlockedSkins: [1, 2, 3],
+    adWatchCount: 7,
+    lastDailyRewardDate: '2026-07-01',
+    tutorialCompleted: true,
+  };
+
+  const merged = server.mergePlatformLockedPlayerSaveData(undefined, incoming, now);
+
+  assert.equal(merged.playerId, 'new_locked_player');
+  assert.equal(merged.nickname, 'New Client');
+  assert.deepEqual(merged.board, []);
+  assert.equal(merged.coins, 0);
+  assert.equal(merged.score, 0);
+  assert.equal(merged.highestItemLevel, 0);
+  assert.deepEqual(merged.unlockedSkins, []);
+  assert.equal(merged.adWatchCount, 0);
+  assert.equal(merged.lastAdRewardTime, 0);
+  assert.equal(merged.lastAdRewardType, '');
+  assert.equal(merged.lastAdRewardClientContext, null);
+  assert.equal(merged.lastDailyRewardDate, '2026-07-01');
+  assert.equal(merged.tutorialCompleted, true);
+  assert.equal(merged.lastSaveTime, now);
+});
+
 test('resolveMockPlatformOpenId maps supported platforms deterministically', () => {
   assert.equal(server.resolveMockPlatformOpenId('wechat', 'abc123'), 'wechat_mock_abc123');
   assert.equal(server.resolveMockPlatformOpenId('douyin', 'abc123'), 'douyin_mock_abc123');

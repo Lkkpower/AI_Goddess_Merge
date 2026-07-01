@@ -139,6 +139,35 @@ function mergePlayerSaveData(existingPlayer, incomingData, now = Date.now()) {
   };
 }
 
+function isPlatformFullSaveLocked(session) {
+  return Boolean(session && session.platform && session.platform !== "web");
+}
+
+function getOptionalStringValue(value, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function mergePlatformLockedPlayerSaveData(existingPlayer, incomingData, now = Date.now()) {
+  const defaultPlayer = createDefaultPlayer(incomingData.playerId, incomingData.nickname);
+  const serverData = existingPlayer || defaultPlayer;
+  const nickname = getOptionalStringValue(incomingData.nickname, serverData.nickname || defaultPlayer.nickname).trim()
+    || serverData.nickname
+    || defaultPlayer.nickname;
+
+  return {
+    ...defaultPlayer,
+    ...serverData,
+    playerId: incomingData.playerId,
+    nickname,
+    lastDailyRewardDate: getOptionalStringValue(
+      incomingData.lastDailyRewardDate,
+      serverData.lastDailyRewardDate || ""
+    ),
+    tutorialCompleted: Boolean(incomingData.tutorialCompleted),
+    lastSaveTime: now,
+  };
+}
+
 function createBoardError(code) {
   const error = new Error(code);
   error.code = code;
@@ -941,6 +970,8 @@ module.exports = {
   createDefaultPlayer,
   validatePlayerData,
   mergePlayerSaveData,
+  isPlatformFullSaveLocked,
+  mergePlatformLockedPlayerSaveData,
   createBoardError,
   createEmptyBoardCells,
   normalizeBoardCells,
