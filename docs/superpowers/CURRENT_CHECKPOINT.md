@@ -228,6 +228,8 @@ Docs:
 
 - `README.md`
 - `README_CLIENT.md`
+- `docs/superpowers/specs/2026-07-01-stage-3g-full-save-lockdown-design.md`
+- `docs/superpowers/plans/2026-07-01-stage-3g-full-save-lockdown.md`
 - `docs/superpowers/specs/2026-06-29-stage-3f-server-authoritative-generate-merge-design.md`
 - `docs/superpowers/specs/2026-06-16-stage-3b-platform-auth-request-design.md`
 - `docs/superpowers/specs/2026-06-25-stage-3e-persistent-session-store-design.md`
@@ -244,7 +246,7 @@ Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 104 pass, 0 fail
+# 110 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
 # 37 pass, 0 fail
@@ -259,21 +261,20 @@ Known note:
 
 ## Git / Workspace State
 
-Current recorded branch state after Stage 3-F handoff update: latest `master` commit is `docs: add stage 3g handoff notes`.
+Current implementation branch after Stage 3-G work: `codex/stage-3g-full-save-lockdown`.
 
-The repository is expected to be on `master` with a clean working tree. Check `git status --short` before resuming; unrelated local editor output should not be reverted.
+After merging this branch, the repository is expected to be on `master` at or after the Stage 3-G completion commit. Check `git status --short` before resuming; unrelated local editor output should not be reverted.
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-G scope selection**.
+Recommended next node: **Stage 3-H scope selection**.
 
 Suggested scope:
 
-- Full-save lockdown so platform clients cannot bypass server-owned board/economy commands.
 - Remaining economy command migration for ad rewards, daily rewards, skins, or leaderboard submissions.
 - Production storage and account/session hardening.
 
-Avoid starting Stage 3-G before the Cocos/browser preview checklist has been run for the Stage 3-F flow.
+Avoid starting Stage 3-H before the Cocos/browser preview checklist has been run for the Stage 3-G flow.
 
 ## How To Resume
 
@@ -300,4 +301,5 @@ When reopening development, start from:
    - ad reward choice modal and reward feedback
    - ad failure message path when platform ad returns false
 5. If platform preview is available with the backend running, confirm `/board/ensure`, `/board/generate`, and `/board/merge` are used for authenticated non-web sessions.
-6. Choose the Stage 3-G scope and write a focused implementation plan before changing code.
+6. Trigger a normal platform full save after server board actions and confirm board/economy state is not rolled back.
+7. Choose the Stage 3-H scope and write a focused design and implementation plan before changing code.
