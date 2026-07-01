@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-F implementation completed**.
+Current development node: **Stage 3-G full-save lockdown completed**.
 
 Completed capabilities:
 
@@ -64,6 +64,8 @@ Completed capabilities:
 - Server auth sessions are persisted to `server/data/sessionData.json`.
 - Server startup restores non-expired persisted auth sessions.
 - Expired persisted sessions are pruned during load and write boundaries.
+- WeChat and Douyin full-player saves can no longer overwrite server-owned board and economy fields.
+- Web preview full-player saves remain broadly compatible for local development.
 
 ## Recent Stage 3-E Progress
 
@@ -98,6 +100,17 @@ Completed so far:
 5. Routed authenticated non-web platform generation and merge through server board actions.
 6. Preserved browser and Cocos preview local generation and merge fallback.
 7. Documented the board action API.
+
+## Recent Stage 3-G Implementation Progress
+
+Completed so far:
+
+1. Stage 3-G full-save lockdown design and implementation plan are committed.
+2. Server full-player save merging now branches by verified session platform.
+3. WeChat and Douyin full saves preserve server-owned board, economy, skin unlock, and ad reward metadata fields.
+4. Web full saves keep broad compatibility for browser and Cocos preview.
+5. Platform first-save fallback creates a locked default snapshot instead of accepting client-authored board or economy bootstrap data.
+6. Client scaffold guardrails confirm full saves remain compatibility submissions while board actions stay on server command endpoints.
 
 ## Recent Stage 3-D Progress
 
@@ -144,33 +157,36 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-F implementation completed; manual Cocos/platform preview pending if not already performed**.
+Current development node for next session: **Stage 3-G full-save lockdown completed; manual Cocos/platform preview pending if not already performed**.
 
 Recommended next node:
 
 - Run the Cocos Creator preview checklist below.
-- Then choose the next Stage 3-G scope: full-save lockdown, remaining economy command migration, or production storage.
+- If platform preview is available, verify full saves cannot overwrite board/economy state after authenticated board actions.
+- Then choose the next Stage 3-H scope: remaining economy command migration or production storage hardening.
 
 ## Next Session Handoff
 
 Start here next time:
 
-1. Confirm the repository is still on `master` at or after `679e291`.
+1. Confirm the repository is still on `master` at or after the Stage 3-G completion commit.
 2. Run the automated baseline verification listed in `## Last Verification`.
-3. Run the Cocos browser preview checklist for Stage 3-F local fallback.
-4. If WeChat or Douyin preview is available with the backend running, verify authenticated board actions hit:
+3. Run the Cocos browser preview checklist for local fallback.
+4. If WeChat or Douyin preview is available with the backend running, verify authenticated board actions still hit:
    - `POST /player/:playerId/board/ensure`
    - `POST /player/:playerId/board/generate`
    - `POST /player/:playerId/board/merge`
-5. After preview, select one Stage 3-G scope and write a focused design/plan before code changes.
+5. In platform preview, trigger a normal save after server board actions and confirm board/economy state is not rolled back by `POST /player/:playerId`.
+6. Choose the next scope:
+   - remaining economy command migration for ad rewards, daily rewards, skins, and related score/coin mutations
+   - production storage and account/session hardening
 
-Immediate Stage 3-G candidates:
+Immediate Stage 3-H candidates:
 
-1. **Full-save lockdown**: stop platform clients from bypassing server-owned board and economy state through transitional full-player saves.
-2. **Remaining economy command migration**: move ad rewards, daily rewards, skin unlocks, and related score/coin mutations behind server-owned command endpoints.
-3. **Production storage hardening**: replace JSON-file persistence and in-memory/session-file assumptions with a production-ready store boundary.
+1. **Remaining economy command migration**: move ad rewards, daily rewards, skin unlocks, and related score/coin mutations behind server-owned command endpoints.
+2. **Production storage hardening**: replace JSON-file persistence and in-memory/session-file assumptions with a production-ready store boundary.
 
-Recommended first Stage 3-G slice: **full-save lockdown**, because Stage 3-F now has server-authoritative board commands but still keeps `POST /player/:playerId` as a transitional compatibility path.
+Recommended first Stage 3-H slice: **remaining economy command migration**, because Stage 3-G protects board/economy state from platform full-save rollback but daily rewards, ad rewards, and skin/economy mutations still need narrower command boundaries.
 
 ## Key Files
 

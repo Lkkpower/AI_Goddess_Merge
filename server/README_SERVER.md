@@ -39,6 +39,13 @@ curl -X POST http://localhost:3000/player/demo_player \
   -d '{"playerId":"demo_player","nickname":"游客","coins":100,"score":200,"highestItemLevel":3,"unlockedSkins":[],"board":[],"adWatchCount":0}'
 ```
 
+Save compatibility boundary:
+
+- Web sessions keep broad full-player save compatibility for browser and Cocos preview.
+- WeChat and Douyin sessions may still call this endpoint, but server-owned gameplay fields are preserved from the stored player record.
+- Locked platform full saves cannot overwrite `board`, `coins`, `score`, `highestItemLevel`, `unlockedSkins`, `adWatchCount`, `lastAdRewardTime`, `lastAdRewardType`, or `lastAdRewardClientContext`.
+- Platform board creation, generation, and merge results must go through the board command endpoints below.
+
 ### Board Ensure
 
 Creates the initial remote board only when the authenticated player's persisted board has no occupied cells.
