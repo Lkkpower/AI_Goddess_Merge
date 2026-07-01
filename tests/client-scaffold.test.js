@@ -559,6 +559,21 @@ test('stage 3F game manager routes platform board actions through remote authori
   assert.match(mainView, /await this\.gameManager\.mergeItems\(payload\.fromRow, payload\.fromCol, target\.row, target\.col\)/);
 });
 
+test('stage 3G keeps full saves as compatibility while board actions use commands', () => {
+  const gameManager = read('assets/scripts/core/GameManager.ts');
+  const storage = read('assets/scripts/core/StorageManager.ts');
+
+  assert.match(gameManager, /saveGame\(\): void/);
+  assert.match(gameManager, /storageManager\.saveLocal\(data\)/);
+  assert.match(gameManager, /storageManager\.saveRemote\(data\)\.catch/);
+  assert.match(gameManager, /storageManager\.generateRemoteItem\(data\.playerId\)/);
+  assert.match(gameManager, /storageManager\.mergeRemoteItems\(data\.playerId, fromIndex, toIndex\)/);
+  assert.match(storage, /async saveRemote\(playerData: PlayerData\): Promise<boolean>/);
+  assert.match(storage, /this\.request\(`\/player\/\$\{playerData\.playerId\}`/);
+  assert.match(storage, /async generateRemoteItem\(playerId: string\): Promise<PlayerData \| null>/);
+  assert.match(storage, /async mergeRemoteItems\(playerId: string, fromIndex: number, toIndex: number\): Promise<PlayerData \| null>/);
+});
+
 test('stage 3D client does not contain platform app secrets', () => {
   const files = [
     'assets/scripts/core/StorageManager.ts',
