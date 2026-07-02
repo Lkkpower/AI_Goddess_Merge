@@ -1,4 +1,4 @@
-# Current Checkpoint - 2026-06-29
+# Current Checkpoint - 2026-07-02
 
 ## Project
 
@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-G full-save lockdown completed**.
+Current development node: **Stage 3-H economy command migration completed**.
 
 Completed capabilities:
 
@@ -66,6 +66,8 @@ Completed capabilities:
 - Expired persisted sessions are pruned during load and write boundaries.
 - WeChat and Douyin full-player saves can no longer overwrite server-owned board and economy fields.
 - Web preview full-player saves remain broadly compatible for local development.
+- Platform ad reward effects are applied through server-owned economy commands.
+- Platform daily rewards are claimed through server-owned economy commands.
 
 ## Recent Stage 3-E Progress
 
@@ -112,6 +114,19 @@ Completed so far:
 5. Platform first-save fallback creates a locked default snapshot instead of accepting client-authored board or economy bootstrap data.
 6. Client scaffold guardrails confirm full saves remain compatibility submissions while board actions stay on server command endpoints.
 
+## Recent Stage 3-H Implementation Progress
+
+Completed so far:
+
+1. Stage 3-H economy command migration design and implementation plan are committed.
+2. Server exposes authenticated economy commands for ad rewards and daily rewards.
+3. Server-owned ad reward commands apply coin, clear-low-item, and high-level-item effects.
+4. Server-owned daily reward commands grant one daily reward per player per day.
+5. `StorageManager.ts` exposes authenticated remote economy command requests.
+6. Platform-authoritative `GameManager.ts` ad rewards and daily rewards now use server economy commands.
+7. Browser and Cocos preview retain local reward fallback behavior.
+8. Client scaffold guardrails confirm platform economy rewards route through remote commands.
+
 ## Recent Stage 3-D Progress
 
 Completed so far:
@@ -157,36 +172,40 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-G full-save lockdown completed; manual Cocos/platform preview pending if not already performed**.
+Current development node for next session: **Stage 3-H economy command migration completed; manual Cocos/platform preview pending if not already performed**.
 
 Recommended next node:
 
 - Run the Cocos Creator preview checklist below.
-- If platform preview is available, verify full saves cannot overwrite board/economy state after authenticated board actions.
-- Then choose the next Stage 3-H scope: remaining economy command migration or production storage hardening.
+- If platform preview is available, verify ad rewards and daily rewards hit the `/economy/*` endpoints.
+- Confirm platform full saves still cannot overwrite board/economy state after authenticated command actions.
+- Then choose the next Stage 3-I scope: remaining server-owned economy surfaces or production storage hardening.
 
 ## Next Session Handoff
 
 Start here next time:
 
-1. Confirm the repository is still on `master` at or after the Stage 3-G completion commit.
+1. Confirm the repository is still on `master` at or after the Stage 3-H completion commit.
 2. Run the automated baseline verification listed in `## Last Verification`.
 3. Run the Cocos browser preview checklist for local fallback.
 4. If WeChat or Douyin preview is available with the backend running, verify authenticated board actions still hit:
    - `POST /player/:playerId/board/ensure`
    - `POST /player/:playerId/board/generate`
    - `POST /player/:playerId/board/merge`
-5. In platform preview, trigger a normal save after server board actions and confirm board/economy state is not rolled back by `POST /player/:playerId`.
-6. Choose the next scope:
-   - remaining economy command migration for ad rewards, daily rewards, skins, and related score/coin mutations
+5. In platform preview, verify economy rewards hit:
+   - `POST /player/:playerId/economy/ad-reward`
+   - `POST /player/:playerId/economy/daily-reward`
+6. Trigger a normal platform full save after server command actions and confirm board/economy state is not rolled back by `POST /player/:playerId`.
+7. Choose the next scope:
+   - remaining economy command migration for skin unlocks and related score/coin mutations not already covered by board merge and reward commands
    - production storage and account/session hardening
 
-Immediate Stage 3-H candidates:
+Immediate Stage 3-I candidates:
 
-1. **Remaining economy command migration**: move ad rewards, daily rewards, skin unlocks, and related score/coin mutations behind server-owned command endpoints.
+1. **Remaining economy command migration**: move skin unlocks and any remaining score/coin mutations behind server-owned command endpoints.
 2. **Production storage hardening**: replace JSON-file persistence and in-memory/session-file assumptions with a production-ready store boundary.
 
-Recommended first Stage 3-H slice: **remaining economy command migration**, because Stage 3-G protects board/economy state from platform full-save rollback but daily rewards, ad rewards, and skin/economy mutations still need narrower command boundaries.
+Recommended first Stage 3-I slice: **production storage and account/session hardening**, because Stage 3-F through Stage 3-H now put board and major economy mutations behind command endpoints, but persistence is still JSON-file based.
 
 ## Key Files
 
@@ -228,6 +247,9 @@ Docs:
 
 - `README.md`
 - `README_CLIENT.md`
+- `server/README_SERVER.md`
+- `docs/superpowers/specs/2026-07-02-stage-3h-economy-command-migration-design.md`
+- `docs/superpowers/plans/2026-07-02-stage-3h-economy-command-migration.md`
 - `docs/superpowers/specs/2026-07-01-stage-3g-full-save-lockdown-design.md`
 - `docs/superpowers/plans/2026-07-01-stage-3g-full-save-lockdown.md`
 - `docs/superpowers/specs/2026-06-29-stage-3f-server-authoritative-generate-merge-design.md`
@@ -246,7 +268,7 @@ Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 110 pass, 0 fail
+# 120 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
 # 37 pass, 0 fail
@@ -261,20 +283,20 @@ Known note:
 
 ## Git / Workspace State
 
-Current implementation branch after Stage 3-G work: `codex/stage-3g-full-save-lockdown`.
+Current implementation branch after Stage 3-H work: `master`.
 
-After merging this branch, the repository is expected to be on `master` at or after the Stage 3-G completion commit. Check `git status --short` before resuming; unrelated local editor output should not be reverted.
+Repository is expected to be on `master` at or after the Stage 3-H completion commit. Check `git status --short` before resuming; unrelated local editor output should not be reverted.
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-H scope selection**.
+Recommended next node: **Stage 3-I scope selection**.
 
 Suggested scope:
 
-- Remaining economy command migration for ad rewards, daily rewards, skins, or leaderboard submissions.
 - Production storage and account/session hardening.
+- Remaining server-owned economy command migration for skin unlocks or other uncovered mutations.
 
-Avoid starting Stage 3-H before the Cocos/browser preview checklist has been run for the Stage 3-G flow.
+Avoid starting Stage 3-I before the Cocos/browser preview checklist has been run for the Stage 3-H flow.
 
 ## How To Resume
 
@@ -300,6 +322,6 @@ When reopening development, start from:
    - leaderboard loading and medal rows
    - ad reward choice modal and reward feedback
    - ad failure message path when platform ad returns false
-5. If platform preview is available with the backend running, confirm `/board/ensure`, `/board/generate`, and `/board/merge` are used for authenticated non-web sessions.
-6. Trigger a normal platform full save after server board actions and confirm board/economy state is not rolled back.
-7. Choose the Stage 3-H scope and write a focused design and implementation plan before changing code.
+5. If platform preview is available with the backend running, confirm `/board/ensure`, `/board/generate`, `/board/merge`, `/economy/ad-reward`, and `/economy/daily-reward` are used for authenticated non-web sessions.
+6. Trigger a normal platform full save after server command actions and confirm board/economy state is not rolled back.
+7. Choose the Stage 3-I scope and write a focused design and implementation plan before changing code.

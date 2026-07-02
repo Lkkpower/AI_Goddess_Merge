@@ -45,6 +45,7 @@ Save compatibility boundary:
 - WeChat and Douyin sessions may still call this endpoint, but server-owned gameplay fields are preserved from the stored player record.
 - Locked platform full saves cannot overwrite `board`, `coins`, `score`, `highestItemLevel`, `unlockedSkins`, `adWatchCount`, `lastAdRewardTime`, `lastAdRewardType`, or `lastAdRewardClientContext`.
 - Platform board creation, generation, and merge results must go through the board command endpoints below.
+- Platform ad reward effects and daily rewards must go through the economy command endpoints below.
 
 ### Board Ensure
 
@@ -79,13 +80,38 @@ curl -X POST http://localhost:3000/player/web_web_mock_demo_player/board/merge \
 
 Board action errors return `{ "ok": false, "error": "<CODE>" }`. Current codes are `BOARD_FULL`, `INVALID_CELL_INDEX`, `EMPTY_SOURCE_CELL`, `EMPTY_TARGET_CELL`, `ITEM_MISMATCH`, `ITEM_MAX_LEVEL`, and `PLAYER_NOT_FOUND`.
 
+### Daily Reward Command
+
+Claims the authenticated player's daily reward server-side and returns the updated player data.
+
+```bash
+curl -X POST http://localhost:3000/player/web_web_mock_demo_player/economy/daily-reward \
+  -H "Authorization: Bearer mock_session_web_web_mock_demo_player" \
+  -H "Content-Type: application/json"
+```
+
+Duplicate same-day claims return `{ "ok": false, "error": "DAILY_REWARD_ALREADY_CLAIMED" }`.
+
+### Ad Reward Command
+
+Applies the authenticated player's rewarded-ad effect server-side and returns the updated player data.
+
+```bash
+curl -X POST http://localhost:3000/player/web_web_mock_demo_player/economy/ad-reward \
+  -H "Authorization: Bearer mock_session_web_web_mock_demo_player" \
+  -H "Content-Type: application/json" \
+  -d '{"rewardType":"coin_bonus"}'
+```
+
+Supported `rewardType` values are `clear_low_items`, `coin_bonus`, and `high_level_item`. Rapid duplicate claims are rejected with `{ "ok": false, "error": "ad reward claim is too frequent" }`; spawning a high-level item on a full board returns `BOARD_FULL`.
+
 ### Leaderboard
 
 ```bash
 curl http://localhost:3000/leaderboard
 ```
 
-### Ad Reward
+### Ad Reward Validation Compatibility
 
 ```bash
 curl -X POST http://localhost:3000/ad/reward \
@@ -94,6 +120,8 @@ curl -X POST http://localhost:3000/ad/reward \
 ```
 
 Optional client context fields: `clientRewardValue`, `clientCoins`, `clientScore`, `clientHighestItemLevel`.
+
+This compatibility endpoint records ad claim metadata and does not apply economy effects. Platform clients should use `POST /player/:playerId/economy/ad-reward` for reward effects.
 
 ## Data
 
@@ -118,6 +146,7 @@ Auth sessions are stored in `server/data/sessionData.json` so active bearer toke
 ```
 
 After an accepted ad reward, `lastAdRewardClientContext` stores the optional client context fields from the `/ad/reward` request.
+After an accepted economy ad reward command, `lastAdRewardClientContext.serverRewardValue` stores the server-applied reward value.
 
 Session records are keyed by `sessionToken`:
 
