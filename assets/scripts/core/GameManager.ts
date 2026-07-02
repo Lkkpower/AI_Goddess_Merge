@@ -215,11 +215,27 @@ export class GameManager extends Component {
         };
     }
 
-    claimAdReward(rewardType: AdRewardType): AdRewardClaimResult {
+    async claimAdReward(rewardType: AdRewardType): Promise<AdRewardClaimResult> {
         const data = this.getPlayerData();
         const config = getAdRewardConfig(rewardType);
         if (!config) {
             return { ok: false, rewardType, message: "奖励类型不存在", value: 0 };
+        }
+
+        if (this.isPlatformAuthoritative()) {
+            const remoteResult = await storageManager.claimRemoteAdReward(data.playerId, rewardType);
+            if (!remoteResult) {
+                return { ok: false, rewardType, message: "广告奖励领取失败", value: 0 };
+            }
+            this.applyRemotePlayerData(remoteResult.player);
+            const result = {
+                ok: remoteResult.ok,
+                rewardType: remoteResult.rewardType,
+                message: remoteResult.message,
+                value: remoteResult.value,
+            };
+            eventManager.emit(GameEvents.AD_REWARD_CLAIMED, result);
+            return result;
         }
 
         let value = 0;
@@ -260,8 +276,27 @@ export class GameManager extends Component {
         return result;
     }
 
-    claimDailyReward(todayKey?: string): DailyRewardResult {
+    async claimDailyReward(todayKey?: string): Promise<DailyRewardResult> {
         const data = this.getPlayerData();
+        if (this.isPlatformAuthoritative()) {
+            const remoteResult = await storageManager.claimRemoteDailyReward(data.playerId);
+            if (!remoteResult) {
+                return {
+                    ok: false,
+                    rewardCoins: 0,
+                    message: "每日奖励领取失败",
+                };
+            }
+            this.applyRemotePlayerData(remoteResult.player);
+            const result = {
+                ok: remoteResult.ok,
+                rewardCoins: remoteResult.rewardCoins,
+                message: remoteResult.message,
+            };
+            eventManager.emit(GameEvents.DAILY_REWARD_CLAIMED, result);
+            return result;
+        }
+
         const result = claimDailyReward(data, todayKey);
         if (result.ok) {
             eventManager.emit(GameEvents.COINS_CHANGED, data.coins);

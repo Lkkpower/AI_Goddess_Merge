@@ -317,12 +317,12 @@ export class MainView extends Component {
         }
     }
 
-    private onDailyRewardClicked(): void {
+    private async onDailyRewardClicked(): Promise<void> {
         audioManager.playClick();
         if (!this.gameManager) {
             return;
         }
-        const result = this.gameManager.claimDailyReward();
+        const result = await this.gameManager.claimDailyReward();
         if (result.ok) {
             this.refreshPlayerInfo();
             this.refreshDailyRewardButtonState();
@@ -351,11 +351,11 @@ export class MainView extends Component {
     }
 
 
-    private applyAdReward(rewardType: AdRewardType): void {
+    private async applyAdReward(rewardType: AdRewardType): Promise<void> {
         if (!this.gameManager) {
             return;
         }
-        const result = this.gameManager.claimAdReward(rewardType);
+        const result = await this.gameManager.claimAdReward(rewardType);
         if (!result.ok) {
             audioManager.playFail();
         }

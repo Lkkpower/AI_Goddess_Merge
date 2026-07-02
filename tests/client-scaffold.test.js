@@ -590,6 +590,22 @@ test('stage 3H storage manager exposes remote economy commands', () => {
   assert.match(storage, /headers: this\.withAuthHeaders\(\{ "Content-Type": "application\/json" \}\)/);
 });
 
+test('stage 3H game manager routes platform economy rewards through remote commands', () => {
+  const gameManager = read('assets/scripts/core/GameManager.ts');
+  const mainView = read('assets/scripts/ui/MainView.ts');
+
+  assert.match(gameManager, /async claimAdReward\(rewardType: AdRewardType\): Promise<AdRewardClaimResult>/);
+  assert.match(gameManager, /storageManager\.claimRemoteAdReward\(data\.playerId, rewardType\)/);
+  assert.match(gameManager, /this\.applyRemotePlayerData\(remoteResult\.player\)/);
+  assert.match(gameManager, /async claimDailyReward\(todayKey\?: string\): Promise<DailyRewardResult>/);
+  assert.match(gameManager, /storageManager\.claimRemoteDailyReward\(data\.playerId\)/);
+  assert.match(gameManager, /GameEvents\.DAILY_REWARD_CLAIMED/);
+  assert.match(mainView, /private async onDailyRewardClicked\(\): Promise<void>/);
+  assert.match(mainView, /await this\.gameManager\.claimDailyReward\(\)/);
+  assert.match(mainView, /private async applyAdReward\(rewardType: AdRewardType\): Promise<void>/);
+  assert.match(mainView, /await this\.gameManager\.claimAdReward\(rewardType\)/);
+});
+
 test('stage 3D client does not contain platform app secrets', () => {
   const files = [
     'assets/scripts/core/StorageManager.ts',
