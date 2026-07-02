@@ -1194,6 +1194,84 @@ test('handlePlayerSave creates locked defaults for first platform full save', ()
   assert.equal(store[session.playerId].tutorialCompleted, true);
 });
 
+test('claimDailyRewardForPlayer grants one server-owned daily reward per day', () => {
+  const now = Date.UTC(2026, 6, 2, 1, 30, 0);
+  const store = {
+    daily_player: {
+      ...server.createDefaultPlayer('daily_player', 'Daily'),
+      coins: 20,
+      lastDailyRewardDate: '',
+      dailyRewardClaimedCount: 0,
+    },
+  };
+
+  const result = server.claimDailyRewardForPlayer(store, 'daily_player', now);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.rewardCoins, 80);
+  assert.equal(result.message, '领取每日奖励 80 金币');
+  assert.equal(result.player.coins, 100);
+  assert.equal(result.player.lastDailyRewardDate, '2026-07-02');
+  assert.equal(result.player.dailyRewardClaimedCount, 1);
+  assert.equal(result.player.lastSaveTime, now);
+  assert.equal(store.daily_player.coins, 100);
+});
+
+test('claimDailyRewardForPlayer rejects duplicate same-day claims', () => {
+  const now = Date.UTC(2026, 6, 2, 1, 30, 0);
+  const store = {
+    daily_player: {
+      ...server.createDefaultPlayer('daily_player', 'Daily'),
+      lastDailyRewardDate: '2026-07-02',
+      dailyRewardClaimedCount: 2,
+    },
+  };
+
+  assert.throws(
+    () => server.claimDailyRewardForPlayer(store, 'daily_player', now),
+    /DAILY_REWARD_ALREADY_CLAIMED/
+  );
+});
+
+test('daily reward handler requires matching player sessions and returns player data', () => {
+  server.sessions.clear();
+  const now = Date.UTC(2026, 6, 2, 1, 30, 0);
+  const store = {};
+  const session = createAuthorizedSession('wechat', 'daily-owner', now);
+  const otherSession = createAuthorizedSession('wechat', 'daily-other', now);
+  store[session.playerId] = {
+    ...server.createDefaultPlayer(session.playerId, 'Daily Owner'),
+    coins: 10,
+    lastDailyRewardDate: '',
+    dailyRewardClaimedCount: 0,
+  };
+
+  const missingCtx = createMockContext({});
+  missingCtx.params = { playerId: session.playerId };
+  server.handleDailyRewardClaim(missingCtx, store, now);
+  assert.equal(missingCtx.status, 401);
+
+  const mismatchCtx = createMockContext({}, { authorization: `Bearer ${otherSession.sessionToken}` });
+  mismatchCtx.params = { playerId: session.playerId };
+  server.handleDailyRewardClaim(mismatchCtx, store, now);
+  assert.equal(mismatchCtx.status, 403);
+
+  const okCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
+  okCtx.params = { playerId: session.playerId };
+  server.handleDailyRewardClaim(okCtx, store, now);
+  assert.equal(okCtx.status, 200);
+  assert.equal(okCtx.body.ok, true);
+  assert.equal(okCtx.body.rewardCoins, 80);
+  assert.equal(okCtx.body.player.playerId, session.playerId);
+  assert.equal(okCtx.body.player.coins, 90);
+
+  const duplicateCtx = createMockContext({}, { authorization: `Bearer ${session.sessionToken}` });
+  duplicateCtx.params = { playerId: session.playerId };
+  server.handleDailyRewardClaim(duplicateCtx, store, now);
+  assert.equal(duplicateCtx.status, 400);
+  assert.deepEqual(duplicateCtx.body, { ok: false, error: 'DAILY_REWARD_ALREADY_CLAIMED' });
+});
+
 test('handlePlayerLoad remains public without token and rejects invalid token when supplied', () => {
   server.sessions.clear();
   const publicPlayer = server.createDefaultPlayer('public_player', 'Public');

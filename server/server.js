@@ -19,6 +19,7 @@ const SESSION_DATA_FILE = path.join(DATA_DIR, "sessionData.json");
 const ALLOWED_REWARD_TYPES = ["clear_low_items", "coin_bonus", "high_level_item"];
 const ALLOWED_AUTH_PLATFORMS = ["wechat", "douyin", "web"];
 const AD_REWARD_COOLDOWN_MS = 30 * 1000;
+const DAILY_REWARD_COINS = 80;
 const DEFAULT_AUTH_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_WECHAT_CODE_EXCHANGE_URL = "https://api.weixin.qq.com/sns/jscode2session";
 const DEFAULT_DOUYIN_CODE_EXCHANGE_URL = "https://developer.toutiao.com/api/apps/v2/jscode2session";
@@ -772,6 +773,20 @@ function handleBoardMerge(ctx, store, now = Date.now()) {
   }
 }
 
+function handleDailyRewardClaim(ctx, store, now = Date.now()) {
+  const { playerId } = ctx.params;
+  const session = requirePlayerSession(ctx, playerId, now);
+  if (!session) {
+    return;
+  }
+
+  try {
+    ctx.body = claimDailyRewardForPlayer(store, playerId, now);
+  } catch (error) {
+    sendBadRequest(ctx, error.message);
+  }
+}
+
 function getLeaderboard(store) {
   return Object.values(store)
     .map((player) => ({
@@ -839,6 +854,35 @@ function claimAdRewardForPlayer(store, body, now = Date.now()) {
     rewardValue: getRewardValue(rewardType),
     adWatchCount: player.adWatchCount,
     lastAdRewardTime: player.lastAdRewardTime,
+  };
+}
+
+function getTodayKey(now = Date.now()) {
+  const date = new Date(now);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function claimDailyRewardForPlayer(store, playerId, now = Date.now()) {
+  const player = store[playerId] || createDefaultPlayer(playerId);
+  const todayKey = getTodayKey(now);
+  if (player.lastDailyRewardDate === todayKey) {
+    throw new Error("DAILY_REWARD_ALREADY_CLAIMED");
+  }
+
+  player.coins = (Number(player.coins) || 0) + DAILY_REWARD_COINS;
+  player.lastDailyRewardDate = todayKey;
+  player.dailyRewardClaimedCount = (Number(player.dailyRewardClaimedCount) || 0) + 1;
+  player.lastSaveTime = now;
+  store[playerId] = player;
+
+  return {
+    ok: true,
+    rewardCoins: DAILY_REWARD_COINS,
+    message: `领取每日奖励 ${DAILY_REWARD_COINS} 金币`,
+    player,
   };
 }
 
@@ -935,6 +979,14 @@ function createApp() {
     }
   });
 
+  router.post("/player/:playerId/economy/daily-reward", (ctx) => {
+    const store = readPlayerStore();
+    handleDailyRewardClaim(ctx, store);
+    if (ctx.status < 400) {
+      writePlayerStore(store);
+    }
+  });
+
   router.get("/leaderboard", (ctx) => {
     const store = readPlayerStore();
     ctx.body = getLeaderboard(store);
@@ -991,6 +1043,7 @@ module.exports = {
   ALLOWED_REWARD_TYPES,
   ALLOWED_AUTH_PLATFORMS,
   AD_REWARD_COOLDOWN_MS,
+  DAILY_REWARD_COINS,
   DEFAULT_AUTH_SESSION_TTL_MS,
   DEFAULT_WECHAT_CODE_EXCHANGE_URL,
   DEFAULT_DOUYIN_CODE_EXCHANGE_URL,
@@ -1028,8 +1081,11 @@ module.exports = {
   handleBoardEnsure,
   handleBoardGenerate,
   handleBoardMerge,
+  handleDailyRewardClaim,
   normalizeAdRewardClientContext,
   claimAdRewardForPlayer,
+  getTodayKey,
+  claimDailyRewardForPlayer,
   sendBadRequest,
   sendAuthExchangeError,
   errorHandler,
