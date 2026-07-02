@@ -10,7 +10,7 @@ function formatJson(value, trailingNewline = false) {
   return `${JSON.stringify(value, null, 2)}${suffix}`;
 }
 
-function createJsonDocumentStore(options) {
+function createJsonDocumentStore(options = {}) {
   const {
     filePath,
     fallbackValue = {},

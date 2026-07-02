@@ -333,6 +333,12 @@ function cleanupTempFile(filePath) {
   }
 }
 
+test('createJsonDocumentStore requires a string filePath', () => {
+  assert.throws(() => jsonStore.createJsonDocumentStore(), /filePath is required/);
+  assert.throws(() => jsonStore.createJsonDocumentStore({}), /filePath is required/);
+  assert.throws(() => jsonStore.createJsonDocumentStore({ filePath: 123 }), /filePath is required/);
+});
+
 test('createJsonObjectStore creates a missing object store file', () => {
   const filePath = createTempJsonFilePath('jsonStore.ensure.test.json');
   cleanupTempFile(filePath);
