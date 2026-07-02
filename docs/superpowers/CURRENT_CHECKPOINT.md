@@ -9,7 +9,7 @@
 
 ## Current Completed Stage
 
-Current development node: **Stage 3-H economy command migration completed**.
+Current development node: **Stage 3-I storage boundary completed**.
 
 Completed capabilities:
 
@@ -68,6 +68,9 @@ Completed capabilities:
 - Web preview full-player saves remain broadly compatible for local development.
 - Platform ad reward effects are applied through server-owned economy commands.
 - Platform daily rewards are claimed through server-owned economy commands.
+- Server player and session persistence now go through a JSON storage boundary.
+- The JSON-backed store preserves existing `server/data/playerData.json` and `server/data/sessionData.json` formats.
+- Existing server helper exports remain compatible while filesystem details are isolated below `server/storage/jsonStore.js`.
 
 ## Recent Stage 3-E Progress
 
@@ -127,6 +130,16 @@ Completed so far:
 7. Browser and Cocos preview retain local reward fallback behavior.
 8. Client scaffold guardrails confirm platform economy rewards route through remote commands.
 
+## Recent Stage 3-I Implementation Progress
+
+Completed so far:
+
+1. Stage 3-I storage boundary design and implementation plan are committed.
+2. Added a focused JSON document/object store module for server persistence.
+3. Rewired player and session persistence helpers to delegate to the JSON store boundary.
+4. Preserved existing JSON file paths, write formatting, and helper exports.
+5. Server tests cover missing files, invalid JSON, non-object JSON, and object round-trips through the store boundary.
+
 ## Recent Stage 3-D Progress
 
 Completed so far:
@@ -172,14 +185,14 @@ Latest development changes completed:
 
 ## Current Resume Node
 
-Current development node for next session: **Stage 3-H economy command migration completed; manual Cocos/platform preview pending if not already performed**.
+Current development node for next session: **Stage 3-I storage boundary completed; manual Cocos/platform preview pending if not already performed**.
 
 Recommended next node:
 
 - Run the Cocos Creator preview checklist below.
 - If platform preview is available, verify ad rewards and daily rewards hit the `/economy/*` endpoints.
 - Confirm platform full saves still cannot overwrite board/economy state after authenticated command actions.
-- Then choose the next Stage 3-I scope: remaining server-owned economy surfaces or production storage hardening.
+- Then choose the next Stage 3-J scope: remaining server-owned economy surfaces or production database/session-store migration.
 
 ## Next Session Handoff
 
@@ -198,14 +211,14 @@ Start here next time:
 6. Trigger a normal platform full save after server command actions and confirm board/economy state is not rolled back by `POST /player/:playerId`.
 7. Choose the next scope:
    - remaining economy command migration for skin unlocks and related score/coin mutations not already covered by board merge and reward commands
-   - production storage and account/session hardening
+   - production database/session-store migration and account/session hardening
 
-Immediate Stage 3-I candidates:
+Immediate Stage 3-J candidates:
 
 1. **Remaining economy command migration**: move skin unlocks and any remaining score/coin mutations behind server-owned command endpoints.
-2. **Production storage hardening**: replace JSON-file persistence and in-memory/session-file assumptions with a production-ready store boundary.
+2. **Production storage migration**: replace JSON-file persistence and in-memory/session-file assumptions with a production database or managed session store.
 
-Recommended first Stage 3-I slice: **production storage and account/session hardening**, because Stage 3-F through Stage 3-H now put board and major economy mutations behind command endpoints, but persistence is still JSON-file based.
+Recommended first Stage 3-J slice: **production database/session-store migration and account/session hardening**, because Stage 3-F through Stage 3-I now isolate persistence behind a JSON boundary, but the active implementation still stores data in local JSON files.
 
 ## Key Files
 
@@ -268,7 +281,7 @@ Most recent verification for this checkpoint:
 
 ```powershell
 node --test tests\server.test.js tests\client-scaffold.test.js
-# 120 pass, 0 fail
+# 127 pass, 0 fail
 
 npx.cmd --yes --package tsx tsx --test tests\client-logic.test.ts tests\platform-adapter.test.ts
 # 37 pass, 0 fail
@@ -283,20 +296,20 @@ Known note:
 
 ## Git / Workspace State
 
-Current implementation branch after Stage 3-H work: `master`.
+Current implementation branch after Stage 3-I work: `master`.
 
-Repository is expected to be on `master` at or after the Stage 3-H completion commit. Check `git status --short` before resuming; unrelated local editor output should not be reverted.
+Repository is expected to be on `master` at or after the Stage 3-I completion commit. Check `git status --short` before resuming; unrelated local editor output should not be reverted.
 
 ## Suggested Next Development Stage
 
-Recommended next node: **Stage 3-I scope selection**.
+Recommended next node: **Stage 3-J scope selection**.
 
 Suggested scope:
 
-- Production storage and account/session hardening.
+- Production database/session-store migration and account/session hardening.
 - Remaining server-owned economy command migration for skin unlocks or other uncovered mutations.
 
-Avoid starting Stage 3-I before the Cocos/browser preview checklist has been run for the Stage 3-H flow.
+Avoid starting Stage 3-J before the Cocos/browser preview checklist has been run for the Stage 3-I flow.
 
 ## How To Resume
 
@@ -324,4 +337,4 @@ When reopening development, start from:
    - ad failure message path when platform ad returns false
 5. If platform preview is available with the backend running, confirm `/board/ensure`, `/board/generate`, `/board/merge`, `/economy/ad-reward`, and `/economy/daily-reward` are used for authenticated non-web sessions.
 6. Trigger a normal platform full save after server command actions and confirm board/economy state is not rolled back.
-7. Choose the Stage 3-I scope and write a focused design and implementation plan before changing code.
+7. Choose the Stage 3-J scope and write a focused design and implementation plan before changing code.

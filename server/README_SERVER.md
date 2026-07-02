@@ -167,6 +167,8 @@ Expired sessions are pruned when the server loads persisted sessions and when a 
 
 ## Notes
 
-- This JSON-file store is for local demo only.
-- Use a database or managed session store before production traffic.
+- Persistence currently flows through `server/storage/jsonStore.js`.
+- The active implementation still stores player and session data as local JSON files under `server/data/`.
+- This boundary keeps the demo JSON format stable while isolating the filesystem implementation for a later SQLite, Redis, or managed-store migration.
+- Before production, replace the JSON-backed store with a production database or managed session store and add operational backup/restore handling.
 - Add server-side ad verification before enabling real rewards.
