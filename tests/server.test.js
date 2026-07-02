@@ -5,6 +5,7 @@ const http = require('node:http');
 const path = require('node:path');
 
 const server = require('../server/server.js');
+const jsonStore = require('../server/storage/jsonStore.js');
 const gameplayConfig = require('../server/gameplayConfig.js');
 
 test('createDefaultPlayer returns a complete player snapshot', () => {
@@ -322,11 +323,85 @@ function createTempSessionFilePath(name) {
   return path.join(__dirname, '..', 'server', 'data', name);
 }
 
+function createTempJsonFilePath(name) {
+  return path.join(__dirname, '..', 'server', 'data', name);
+}
+
 function cleanupTempFile(filePath) {
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);
   }
 }
+
+test('createJsonObjectStore creates a missing object store file', () => {
+  const filePath = createTempJsonFilePath('jsonStore.ensure.test.json');
+  cleanupTempFile(filePath);
+  const store = jsonStore.createJsonObjectStore({
+    filePath,
+    label: 'test object store',
+  });
+
+  store.ensure();
+
+  assert.deepEqual(JSON.parse(fs.readFileSync(filePath, 'utf8')), {});
+  cleanupTempFile(filePath);
+});
+
+test('createJsonObjectStore falls back to empty object for invalid non-object content', () => {
+  const filePath = createTempJsonFilePath('jsonStore.invalid.test.json');
+  cleanupTempFile(filePath);
+  const store = jsonStore.createJsonObjectStore({
+    filePath,
+    label: 'test object store',
+  });
+
+  fs.writeFileSync(filePath, '{bad json', 'utf8');
+  assert.deepEqual(store.read(), {});
+
+  fs.writeFileSync(filePath, '', 'utf8');
+  assert.deepEqual(store.read(), {});
+
+  fs.writeFileSync(filePath, '[]', 'utf8');
+  assert.deepEqual(store.read(), {});
+
+  fs.writeFileSync(filePath, '"value"', 'utf8');
+  assert.deepEqual(store.read(), {});
+
+  cleanupTempFile(filePath);
+});
+
+test('createJsonObjectStore writes object data without trailing newline by default', () => {
+  const filePath = createTempJsonFilePath('jsonStore.write-default.test.json');
+  cleanupTempFile(filePath);
+  const store = jsonStore.createJsonObjectStore({
+    filePath,
+    label: 'test object store',
+  });
+  const value = { player: { coins: 120 } };
+
+  store.write(value);
+
+  assert.equal(fs.readFileSync(filePath, 'utf8'), JSON.stringify(value, null, 2));
+  assert.deepEqual(store.read(), value);
+  cleanupTempFile(filePath);
+});
+
+test('createJsonObjectStore round-trips object data with configurable newline', () => {
+  const filePath = createTempJsonFilePath('jsonStore.write.test.json');
+  cleanupTempFile(filePath);
+  const store = jsonStore.createJsonObjectStore({
+    filePath,
+    label: 'test object store',
+    trailingNewline: true,
+  });
+  const value = { player: { coins: 120 } };
+
+  store.write(value);
+
+  assert.equal(fs.readFileSync(filePath, 'utf8'), `${JSON.stringify(value, null, 2)}\n`);
+  assert.deepEqual(store.read(), value);
+  cleanupTempFile(filePath);
+});
 
 test('ensureSessionDataFile creates an empty session store file', () => {
   const filePath = createTempSessionFilePath('sessionData.ensure.test.json');
