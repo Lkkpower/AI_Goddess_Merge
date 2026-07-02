@@ -30,6 +30,21 @@ export interface AuthLoginResponse {
     expiresAt: number;
 }
 
+export interface RemoteAdRewardResult {
+    ok: boolean;
+    rewardType: AdRewardType;
+    message: string;
+    value: number;
+    player: PlayerData;
+}
+
+export interface RemoteDailyRewardResult {
+    ok: boolean;
+    rewardCoins: number;
+    message: string;
+    player: PlayerData;
+}
+
 class StorageManager {
     remoteBaseUrl = "http://localhost:3000";
     private sessionToken = "";
@@ -166,6 +181,31 @@ class StorageManager {
             }) as PlayerData;
         } catch (error) {
             console.warn("[StorageManager] mergeRemoteItems failed", error);
+            return null;
+        }
+    }
+
+    async claimRemoteAdReward(playerId: string, rewardType: AdRewardType): Promise<RemoteAdRewardResult | null> {
+        try {
+            return await this.request(`/player/${playerId}/economy/ad-reward`, {
+                method: "POST",
+                headers: this.withAuthHeaders({ "Content-Type": "application/json" }),
+                body: JSON.stringify({ rewardType }),
+            }) as RemoteAdRewardResult;
+        } catch (error) {
+            console.warn("[StorageManager] claimRemoteAdReward failed", error);
+            return null;
+        }
+    }
+
+    async claimRemoteDailyReward(playerId: string): Promise<RemoteDailyRewardResult | null> {
+        try {
+            return await this.request(`/player/${playerId}/economy/daily-reward`, {
+                method: "POST",
+                headers: this.withAuthHeaders({ "Content-Type": "application/json" }),
+            }) as RemoteDailyRewardResult;
+        } catch (error) {
+            console.warn("[StorageManager] claimRemoteDailyReward failed", error);
             return null;
         }
     }

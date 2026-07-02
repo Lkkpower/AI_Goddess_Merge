@@ -574,6 +574,22 @@ test('stage 3G keeps full saves as compatibility while board actions use command
   assert.match(storage, /async mergeRemoteItems\(playerId: string, fromIndex: number, toIndex: number\): Promise<PlayerData \| null>/);
 });
 
+test('stage 3H storage manager exposes remote economy commands', () => {
+  const storage = read('assets/scripts/core/StorageManager.ts');
+
+  assert.match(storage, /export interface RemoteAdRewardResult/);
+  assert.match(storage, /export interface RemoteDailyRewardResult/);
+  assert.match(storage, /rewardType: AdRewardType/);
+  assert.match(storage, /rewardCoins: number/);
+  assert.match(storage, /player: PlayerData/);
+  assert.match(storage, /async claimRemoteAdReward\(playerId: string, rewardType: AdRewardType\): Promise<RemoteAdRewardResult \| null>/);
+  assert.match(storage, /async claimRemoteDailyReward\(playerId: string\): Promise<RemoteDailyRewardResult \| null>/);
+  assert.match(storage, /`\/player\/\$\{playerId\}\/economy\/ad-reward`/);
+  assert.match(storage, /`\/player\/\$\{playerId\}\/economy\/daily-reward`/);
+  assert.match(storage, /body: JSON\.stringify\(\{ rewardType \}\)/);
+  assert.match(storage, /headers: this\.withAuthHeaders\(\{ "Content-Type": "application\/json" \}\)/);
+});
+
 test('stage 3D client does not contain platform app secrets', () => {
   const files = [
     'assets/scripts/core/StorageManager.ts',
@@ -590,4 +606,3 @@ test('stage 3D client does not contain platform app secrets', () => {
     assert.doesNotMatch(source, /DOUYIN_APP_SECRET/);
   }
 });
-
