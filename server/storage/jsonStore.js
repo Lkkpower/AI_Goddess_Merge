@@ -5,6 +5,10 @@ function normalizeObjectStore(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
+function cloneJsonValue(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 function formatJson(value, trailingNewline = false) {
   const suffix = trailingNewline ? "\n" : "";
   return `${JSON.stringify(value, null, 2)}${suffix}`;
@@ -29,7 +33,7 @@ function createJsonDocumentStore(options = {}) {
       fs.mkdirSync(dirPath, { recursive: true });
     }
     if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, formatJson(fallbackValue, trailingNewline), "utf8");
+      fs.writeFileSync(filePath, formatJson(cloneJsonValue(fallbackValue), trailingNewline), "utf8");
     }
   }
 
@@ -37,11 +41,11 @@ function createJsonDocumentStore(options = {}) {
     ensure();
     try {
       const raw = fs.readFileSync(filePath, "utf8");
-      const parsed = raw.trim() ? JSON.parse(raw) : fallbackValue;
+      const parsed = raw.trim() ? JSON.parse(raw) : cloneJsonValue(fallbackValue);
       return normalize(parsed);
     } catch (error) {
       console.warn(`[server] failed to read ${label}`, error);
-      return fallbackValue;
+      return normalize(cloneJsonValue(fallbackValue));
     }
   }
 

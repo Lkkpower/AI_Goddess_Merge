@@ -376,6 +376,25 @@ test('createJsonObjectStore falls back to empty object for invalid non-object co
   cleanupTempFile(filePath);
 });
 
+test('createJsonObjectStore returns fresh fallback objects after failed reads', () => {
+  const filePath = createTempJsonFilePath('jsonStore.fallback-isolation.test.json');
+  cleanupTempFile(filePath);
+  const store = jsonStore.createJsonObjectStore({
+    filePath,
+    label: 'test object store',
+  });
+
+  fs.writeFileSync(filePath, '{bad json', 'utf8');
+  const first = store.read();
+  first.leaked = true;
+
+  const second = store.read();
+
+  assert.deepEqual(second, {});
+  assert.notStrictEqual(second, first);
+  cleanupTempFile(filePath);
+});
+
 test('createJsonObjectStore writes object data without trailing newline by default', () => {
   const filePath = createTempJsonFilePath('jsonStore.write-default.test.json');
   cleanupTempFile(filePath);
