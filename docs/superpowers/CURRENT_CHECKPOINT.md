@@ -198,7 +198,7 @@ Recommended next node:
 
 Start here next time:
 
-1. Confirm the repository is still on `master` at or after the Stage 3-H completion commit.
+1. Confirm the repository is still on `master` at or after the Stage 3-I completion commit.
 2. Run the automated baseline verification listed in `## Last Verification`.
 3. Run the Cocos browser preview checklist for local fallback.
 4. If WeChat or Douyin preview is available with the backend running, verify authenticated board actions still hit:
