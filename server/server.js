@@ -2,8 +2,8 @@
 const Router = require("@koa/router");
 const bodyParser = require("koa-bodyparser");
 const cors = require("@koa/cors");
-const fs = require("fs");
 const path = require("path");
+const { createJsonObjectStore } = require("./storage/jsonStore");
 const {
   BOARD_ROWS,
   BOARD_COLS,
@@ -16,6 +16,29 @@ const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "playerData.json");
 const SESSION_DATA_FILE = path.join(DATA_DIR, "sessionData.json");
+
+const playerStore = createJsonObjectStore({
+  filePath: DATA_FILE,
+  label: "player store",
+});
+
+const sessionStore = createJsonObjectStore({
+  filePath: SESSION_DATA_FILE,
+  label: "session store",
+  trailingNewline: true,
+});
+
+function createSessionStore(filePath = SESSION_DATA_FILE) {
+  if (filePath === SESSION_DATA_FILE) {
+    return sessionStore;
+  }
+  return createJsonObjectStore({
+    filePath,
+    label: "session store",
+    trailingNewline: true,
+  });
+}
+
 const ALLOWED_REWARD_TYPES = ["clear_low_items", "coin_bonus", "high_level_item"];
 const ALLOWED_AUTH_PLATFORMS = ["wechat", "douyin", "web"];
 const AD_REWARD_COOLDOWN_MS = 30 * 1000;
@@ -26,55 +49,27 @@ const DEFAULT_DOUYIN_CODE_EXCHANGE_URL = "https://developer.toutiao.com/api/apps
 const sessions = new Map();
 
 function ensureDataFile() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({}, null, 2), "utf8");
-  }
+  playerStore.ensure();
 }
 
 function readPlayerStore() {
-  ensureDataFile();
-  try {
-    const raw = fs.readFileSync(DATA_FILE, "utf8");
-    return raw.trim() ? JSON.parse(raw) : {};
-  } catch (error) {
-    console.warn("[server] failed to read player store", error);
-    return {};
-  }
+  return playerStore.read();
 }
 
 function writePlayerStore(store) {
-  ensureDataFile();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), "utf8");
+  playerStore.write(store);
 }
 
 function ensureSessionDataFile(filePath = SESSION_DATA_FILE) {
-  const dirPath = path.dirname(filePath);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({}, null, 2), "utf8");
-  }
+  createSessionStore(filePath).ensure();
 }
 
 function readSessionStore(filePath = SESSION_DATA_FILE) {
-  ensureSessionDataFile(filePath);
-  try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    const parsed = raw.trim() ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch (error) {
-    console.warn("[server] failed to read session store", error);
-    return {};
-  }
+  return createSessionStore(filePath).read();
 }
 
 function writeSessionStore(store, filePath = SESSION_DATA_FILE) {
-  ensureSessionDataFile(filePath);
-  fs.writeFileSync(filePath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  createSessionStore(filePath).write(store);
 }
 
 function createDefaultPlayer(playerId, nickname = "游客") {
