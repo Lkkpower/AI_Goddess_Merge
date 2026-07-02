@@ -438,6 +438,16 @@ test('ensureSessionDataFile creates an empty session store file', () => {
   cleanupTempFile(filePath);
 });
 
+test('ensureSessionDataFile initializes empty session json without trailing newline', () => {
+  const filePath = createTempSessionFilePath('sessionData.ensure-format.test.json');
+  cleanupTempFile(filePath);
+
+  server.ensureSessionDataFile(filePath);
+
+  assert.equal(fs.readFileSync(filePath, 'utf8'), JSON.stringify({}, null, 2));
+  cleanupTempFile(filePath);
+});
+
 test('readSessionStore reads valid session json and falls back for invalid content', () => {
   const filePath = createTempSessionFilePath('sessionData.read.test.json');
   cleanupTempFile(filePath);

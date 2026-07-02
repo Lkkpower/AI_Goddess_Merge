@@ -20,6 +20,7 @@ function createJsonDocumentStore(options = {}) {
     fallbackValue = {},
     label = "json store",
     trailingNewline = false,
+    initialTrailingNewline = false,
     normalize = (value) => value,
   } = options;
 
@@ -33,7 +34,7 @@ function createJsonDocumentStore(options = {}) {
       fs.mkdirSync(dirPath, { recursive: true });
     }
     if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, formatJson(cloneJsonValue(fallbackValue), trailingNewline), "utf8");
+      fs.writeFileSync(filePath, formatJson(cloneJsonValue(fallbackValue), initialTrailingNewline), "utf8");
     }
   }
 
