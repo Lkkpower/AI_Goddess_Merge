@@ -224,6 +224,27 @@ function getEmptyBoardCells(board) {
   return board.filter((cell) => cell.itemId === null);
 }
 
+function removeLowestLevelBoardItems(board, count) {
+  const occupiedCells = getOccupiedBoardCells(board)
+    .map((cell) => ({
+      cell,
+      config: getItemConfigById(cell.itemId),
+    }))
+    .filter((entry) => entry.config)
+    .sort((a, b) => {
+      if (a.config.level !== b.config.level) {
+        return a.config.level - b.config.level;
+      }
+      return (a.cell.row * BOARD_COLS + a.cell.col) - (b.cell.row * BOARD_COLS + b.cell.col);
+    });
+
+  const targets = occupiedCells.slice(0, count);
+  targets.forEach((entry) => {
+    entry.cell.itemId = null;
+  });
+  return targets.length;
+}
+
 function pickRandomCell(cells, randomFn = Math.random) {
   const index = Math.min(cells.length - 1, Math.floor(randomFn() * cells.length));
   return cells[index];
@@ -787,6 +808,21 @@ function handleDailyRewardClaim(ctx, store, now = Date.now()) {
   }
 }
 
+function handleEconomyAdRewardClaim(ctx, store, now = Date.now(), randomFn = Math.random) {
+  const { playerId } = ctx.params;
+  const session = requirePlayerSession(ctx, playerId, now);
+  if (!session) {
+    return;
+  }
+
+  try {
+    const body = ctx.request.body || {};
+    ctx.body = claimEconomyAdRewardForPlayer(store, playerId, body.rewardType, now, randomFn);
+  } catch (error) {
+    sendBadRequest(ctx, error.message);
+  }
+}
+
 function getLeaderboard(store) {
   return Object.values(store)
     .map((player) => ({
@@ -882,6 +918,57 @@ function claimDailyRewardForPlayer(store, playerId, now = Date.now()) {
     ok: true,
     rewardCoins: DAILY_REWARD_COINS,
     message: `领取每日奖励 ${DAILY_REWARD_COINS} 金币`,
+    player,
+  };
+}
+
+function claimEconomyAdRewardForPlayer(store, playerId, rewardType, now = Date.now(), randomFn = Math.random) {
+  if (!ALLOWED_REWARD_TYPES.includes(rewardType)) {
+    throw new Error("rewardType is invalid");
+  }
+
+  const player = store[playerId] || createDefaultPlayer(playerId);
+  player.board = normalizeBoardCells(player.board);
+
+  const lastAdRewardTime = Number(player.lastAdRewardTime) || 0;
+  if (lastAdRewardTime > 0 && now - lastAdRewardTime < AD_REWARD_COOLDOWN_MS) {
+    throw new Error("ad reward claim is too frequent");
+  }
+
+  let value = 0;
+  let message = "广告奖励已领取";
+  if (rewardType === "clear_low_items") {
+    value = removeLowestLevelBoardItems(player.board, 3);
+    message = `已清理 ${value} 件低级服装`;
+  }
+  if (rewardType === "coin_bonus") {
+    value = getRewardValue(rewardType);
+    player.coins = (Number(player.coins) || 0) + value;
+    message = `获得 ${value} 金币`;
+  }
+  if (rewardType === "high_level_item") {
+    const emptyCells = getEmptyBoardCells(player.board);
+    if (emptyCells.length === 0) {
+      throw createBoardError("BOARD_FULL");
+    }
+    const target = pickRandomCell(emptyCells, randomFn);
+    value = getRewardValue(rewardType);
+    target.itemId = value;
+    message = "获得 1 件高级服装";
+  }
+
+  player.adWatchCount = (Number(player.adWatchCount) || 0) + 1;
+  player.lastAdRewardTime = now;
+  player.lastAdRewardType = rewardType;
+  player.lastAdRewardClientContext = { serverRewardValue: value };
+  player.lastSaveTime = now;
+  store[playerId] = player;
+
+  return {
+    ok: true,
+    rewardType,
+    message,
+    value,
     player,
   };
 }
@@ -987,6 +1074,14 @@ function createApp() {
     }
   });
 
+  router.post("/player/:playerId/economy/ad-reward", (ctx) => {
+    const store = readPlayerStore();
+    handleEconomyAdRewardClaim(ctx, store);
+    if (ctx.status < 400) {
+      writePlayerStore(store);
+    }
+  });
+
   router.get("/leaderboard", (ctx) => {
     const store = readPlayerStore();
     ctx.body = getLeaderboard(store);
@@ -1032,6 +1127,7 @@ module.exports = {
   getBoardCell,
   getOccupiedBoardCells,
   getEmptyBoardCells,
+  removeLowestLevelBoardItems,
   pickRandomCell,
   spawnServerLowLevelItem,
   getPlayerForBoardAction,
@@ -1082,10 +1178,12 @@ module.exports = {
   handleBoardGenerate,
   handleBoardMerge,
   handleDailyRewardClaim,
+  handleEconomyAdRewardClaim,
   normalizeAdRewardClientContext,
   claimAdRewardForPlayer,
   getTodayKey,
   claimDailyRewardForPlayer,
+  claimEconomyAdRewardForPlayer,
   sendBadRequest,
   sendAuthExchangeError,
   errorHandler,

@@ -1272,6 +1272,133 @@ test('daily reward handler requires matching player sessions and returns player 
   assert.deepEqual(duplicateCtx.body, { ok: false, error: 'DAILY_REWARD_ALREADY_CLAIMED' });
 });
 
+test('claimEconomyAdRewardForPlayer applies coin bonus server-side', () => {
+  const now = 1781450000000;
+  const store = {
+    ad_player: {
+      ...server.createDefaultPlayer('ad_player', 'Ad'),
+      coins: 30,
+      board: fullBoard(null),
+    },
+  };
+
+  const result = server.claimEconomyAdRewardForPlayer(store, 'ad_player', 'coin_bonus', now);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.rewardType, 'coin_bonus');
+  assert.equal(result.value, 120);
+  assert.equal(result.message, '获得 120 金币');
+  assert.equal(result.player.coins, 150);
+  assert.equal(result.player.adWatchCount, 1);
+  assert.equal(result.player.lastAdRewardTime, now);
+  assert.equal(result.player.lastAdRewardType, 'coin_bonus');
+  assert.deepEqual(result.player.lastAdRewardClientContext, {
+    serverRewardValue: 120,
+  });
+});
+
+test('claimEconomyAdRewardForPlayer removes the lowest-level occupied cells', () => {
+  const now = 1781450000000;
+  const board = fullBoard(null);
+  board[0] = { row: 0, col: 0, itemId: 4 };
+  board[1] = { row: 0, col: 1, itemId: 1 };
+  board[2] = { row: 0, col: 2, itemId: 3 };
+  board[3] = { row: 0, col: 3, itemId: 2 };
+  const store = {
+    ad_player: {
+      ...server.createDefaultPlayer('ad_player', 'Ad'),
+      board,
+    },
+  };
+
+  const result = server.claimEconomyAdRewardForPlayer(store, 'ad_player', 'clear_low_items', now);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value, 3);
+  assert.equal(result.message, '已清理 3 件低级服装');
+  assert.equal(result.player.board[0].itemId, 4);
+  assert.equal(result.player.board[1].itemId, null);
+  assert.equal(result.player.board[2].itemId, null);
+  assert.equal(result.player.board[3].itemId, null);
+});
+
+test('claimEconomyAdRewardForPlayer spawns high-level item and rejects full board', () => {
+  const now = 1781450000000;
+  const board = fullBoard(null);
+  const store = {
+    ad_player: {
+      ...server.createDefaultPlayer('ad_player', 'Ad'),
+      board,
+    },
+  };
+
+  const result = server.claimEconomyAdRewardForPlayer(store, 'ad_player', 'high_level_item', now, () => 0);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value, 4);
+  assert.equal(result.message, '获得 1 件高级服装');
+  assert.equal(result.player.board[0].itemId, 4);
+
+  const fullStore = {
+    full_ad_player: {
+      ...server.createDefaultPlayer('full_ad_player', 'Full'),
+      board: fullBoard(1),
+    },
+  };
+  assert.throws(
+    () => server.claimEconomyAdRewardForPlayer(fullStore, 'full_ad_player', 'high_level_item', now, () => 0),
+    /BOARD_FULL/
+  );
+});
+
+test('claimEconomyAdRewardForPlayer rejects rapid duplicate claims', () => {
+  const now = 1781450000000;
+  const store = {
+    ad_player: {
+      ...server.createDefaultPlayer('ad_player', 'Ad'),
+      board: fullBoard(null),
+    },
+  };
+
+  server.claimEconomyAdRewardForPlayer(store, 'ad_player', 'coin_bonus', now);
+
+  assert.throws(
+    () => server.claimEconomyAdRewardForPlayer(store, 'ad_player', 'coin_bonus', now + 1000),
+    /ad reward claim is too frequent/
+  );
+});
+
+test('economy ad reward handler requires matching player sessions and returns player data', () => {
+  server.sessions.clear();
+  const now = 1781450000000;
+  const store = {};
+  const session = createAuthorizedSession('wechat', 'economy-ad-owner');
+  const otherSession = createAuthorizedSession('wechat', 'economy-ad-other');
+  store[session.playerId] = {
+    ...server.createDefaultPlayer(session.playerId, 'Ad Owner'),
+    board: fullBoard(null),
+  };
+
+  const missingCtx = createMockContext({ rewardType: 'coin_bonus' });
+  missingCtx.params = { playerId: session.playerId };
+  server.handleEconomyAdRewardClaim(missingCtx, store, now);
+  assert.equal(missingCtx.status, 401);
+
+  const mismatchCtx = createMockContext({ rewardType: 'coin_bonus' }, { authorization: `Bearer ${otherSession.sessionToken}` });
+  mismatchCtx.params = { playerId: session.playerId };
+  server.handleEconomyAdRewardClaim(mismatchCtx, store, now);
+  assert.equal(mismatchCtx.status, 403);
+
+  const okCtx = createMockContext({ rewardType: 'coin_bonus' }, { authorization: `Bearer ${session.sessionToken}` });
+  okCtx.params = { playerId: session.playerId };
+  server.handleEconomyAdRewardClaim(okCtx, store, now);
+  assert.equal(okCtx.status, 200);
+  assert.equal(okCtx.body.ok, true);
+  assert.equal(okCtx.body.rewardType, 'coin_bonus');
+  assert.equal(okCtx.body.player.playerId, session.playerId);
+  assert.equal(okCtx.body.player.coins, 120);
+});
+
 test('handlePlayerLoad remains public without token and rejects invalid token when supplied', () => {
   server.sessions.clear();
   const publicPlayer = server.createDefaultPlayer('public_player', 'Public');
